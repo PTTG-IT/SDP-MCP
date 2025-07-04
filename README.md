@@ -86,14 +86,24 @@ SDP_INSTANCE_NAME=your_instance  # Found in Admin > Instance Settings
 - `SDP_BASE_URL` should be your portal's base URL (e.g., `https://helpdesk.company.com`)
 - `SDP_INSTANCE_NAME` can be found in your Service Desk Plus instance settings
 - OAuth uses Zoho's central authentication server (`https://accounts.zoho.com`)
+- After creating new credentials, always revoke old ones for security
 
 ## Getting OAuth Credentials
 
+### Method 1: From Service Desk Plus (Recommended)
 1. Log in to your Service Desk Plus Cloud instance
 2. Navigate to **Admin** > **Integration** > **API**
 3. Create a new OAuth 2.0 application
 4. Note your Client ID and Client Secret
-5. Set the redirect URI to match your configuration
+
+### Method 2: From Zoho API Console
+1. Go to [Zoho API Console](https://api-console.zoho.com/)
+2. Create a new client or use an existing one
+3. Navigate to your client's settings
+4. Find your Client ID and Client Secret
+5. Ensure the client has appropriate Service Desk Plus scopes
+
+**Note:** The OAuth credentials can be managed from either location, but creating them directly in Service Desk Plus ensures proper scope configuration.
 
 ## Usage
 
