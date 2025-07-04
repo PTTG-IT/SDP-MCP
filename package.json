@@ -3,9 +3,20 @@
   "version": "1.0.0",
   "description": "Service Desk Plus Cloud API integration with MCP server for AI assistants",
   "type": "module",
-  "main": "dist/index.js",
+  "main": "dist/exports.js",
+  "types": "dist/exports.d.ts",
   "bin": {
     "sdp-mcp-server": "dist/index.js"
+  },
+  "exports": {
+    ".": {
+      "import": "./dist/exports.js",
+      "types": "./dist/exports.d.ts"
+    },
+    "./optimized": {
+      "import": "./dist/api/optimizedClient.js",
+      "types": "./dist/api/optimizedClient.d.ts"
+    }
   },
   "scripts": {
     "build": "tsc",

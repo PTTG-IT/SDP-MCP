@@ -11,6 +11,9 @@ export interface Config {
   logLevel: string;
 }
 
+// Alias for backward compatibility
+export type SDPConfig = Config;
+
 export function loadConfig(): Config {
   const requiredEnvVars = [
     'SDP_CLIENT_ID',
