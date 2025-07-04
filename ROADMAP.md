@@ -15,14 +15,22 @@ To provide a comprehensive, production-ready MCP server that enables AI assistan
 - [ ] Bulk asset import/export
 - [ ] Asset lifecycle tracking
 
-#### Version 0.5.0 - ITIL Process Management (Target: February)
-- [ ] Problem Management module
-- [ ] Change Management module
-- [ ] Incident-Problem-Change linking
-- [ ] Approval workflow support
-- [ ] 10-12 new MCP tools
+#### Version 0.5.0 - Change Management (Target: Early February)
+- [ ] Complete Change Management module
+- [ ] 24 new MCP tools for changes (see CHANGE_MANAGEMENT_SPEC.md)
+- [ ] Change approval workflows
+- [ ] Change task management
+- [ ] Change impact analysis
+- [ ] Change-Problem-Request linking
 
-#### Version 0.6.0 - Enhanced Operations (Target: March)
+#### Version 0.6.0 - Problem Management (Target: Late February)
+- [ ] Problem Management module
+- [ ] Root cause analysis tools
+- [ ] Problem-Incident linking
+- [ ] Known error database
+- [ ] 8-10 new MCP tools
+
+#### Version 0.7.0 - Enhanced Operations (Target: March)
 - [ ] Bulk operations across all modules
 - [ ] Advanced search with query builder
 - [ ] Custom field support
@@ -31,14 +39,14 @@ To provide a comprehensive, production-ready MCP server that enables AI assistan
 
 ### Q2 2025 (April - June)
 
-#### Version 0.7.0 - Analytics & Reporting (Target: April)
+#### Version 0.8.0 - Analytics & Reporting (Target: April)
 - [ ] Report generation tools
 - [ ] Dashboard metrics API
 - [ ] Data export capabilities (CSV, JSON, PDF)
 - [ ] Scheduled reports
 - [ ] SLA tracking and reporting
 
-#### Version 0.8.0 - Automation & Integration (Target: May)
+#### Version 0.9.0 - Automation & Integration (Target: May)
 - [ ] Webhook support for real-time events
 - [ ] Automation rule execution
 - [ ] Third-party integrations framework
