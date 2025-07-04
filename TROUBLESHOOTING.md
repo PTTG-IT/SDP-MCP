@@ -20,8 +20,9 @@ This guide helps resolve common issues when using the Service Desk Plus Cloud AP
 
 **Solution:**
 1. Verify your Client ID and Client Secret are correct
-2. Check that your OAuth app is active in SDP Admin > Integration > API
+2. Check your OAuth app in Zoho API Console: https://api-console.zoho.com/
 3. Ensure credentials are properly set in your `.env` file
+4. Verify you're using the correct Zoho data center for your region
 
 ### API Request Errors
 

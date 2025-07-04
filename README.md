@@ -90,20 +90,20 @@ SDP_INSTANCE_NAME=your_instance  # Found in Admin > Instance Settings
 
 ## Getting OAuth Credentials
 
-### Method 1: From Service Desk Plus (Recommended)
-1. Log in to your Service Desk Plus Cloud instance
-2. Navigate to **Admin** > **Integration** > **API**
-3. Create a new OAuth 2.0 application
-4. Note your Client ID and Client Secret
+For Service Desk Plus **Cloud**, OAuth credentials are managed through the Zoho API Console:
 
-### Method 2: From Zoho API Console
 1. Go to [Zoho API Console](https://api-console.zoho.com/)
-2. Create a new client or use an existing one
-3. Navigate to your client's settings
-4. Find your Client ID and Client Secret
-5. Ensure the client has appropriate Service Desk Plus scopes
+2. Click **Add Client**
+3. Choose **Self Client** for internal applications (or appropriate type for your use case)
+4. Click **Create**
+5. On the API Console main page, click on your client application
+6. Navigate to the **Client Secret** tab
+7. Copy your **Client ID** and **Client Secret**
 
-**Note:** The OAuth credentials can be managed from either location, but creating them directly in Service Desk Plus ensures proper scope configuration.
+**Important Notes:**
+- Use your domain-specific Zoho Developer Console based on your data center
+- For on-premise Service Desk Plus installations, API keys are generated differently (Admin → Technicians)
+- Configure appropriate redirect URIs if needed for your application
 
 ## Usage
 

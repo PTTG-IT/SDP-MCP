@@ -20,7 +20,7 @@ If you discover a security vulnerability in this project, please report it respo
 
 ### 2. OAuth 2.0 Security
 
-- **Revoke compromised tokens immediately** in Service Desk Plus admin panel
+- **Revoke compromised tokens immediately** in Zoho API Console
 - **Limit OAuth scopes** to only what's necessary
 - **Monitor API usage** for unusual patterns
 - **Use HTTPS only** for all API communications
@@ -72,9 +72,10 @@ The project includes security-conscious error handling:
 
 If credentials are exposed:
 
-1. **Immediately revoke** the exposed credentials in Service Desk Plus:
-   - Go to Admin → Integration → API → OAuth 2.0
-   - Find the compromised app and revoke access
+1. **Immediately revoke** the exposed credentials:
+   - Go to [Zoho API Console](https://api-console.zoho.com/)
+   - Find your client application
+   - Regenerate or revoke the compromised credentials
    
 2. **Generate new credentials**
 3. **Update all environments** with new credentials
