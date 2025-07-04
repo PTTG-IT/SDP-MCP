@@ -40,6 +40,22 @@ This project uses **Context Engineering** to enable AI assistants to better unde
 - Service Desk Plus Cloud account with API access
 - OAuth 2.0 credentials (Client ID and Client Secret)
 
+## 🔒 Security Notice
+
+**IMPORTANT:** This project handles sensitive API credentials. Please follow these security practices:
+
+1. **Never commit credentials**: The `.env` file contains sensitive information and should NEVER be committed to version control
+2. **Rotate credentials regularly**: If credentials are exposed, revoke them immediately in your Service Desk Plus admin panel
+3. **Use environment variables**: Always use environment variables for sensitive configuration
+4. **Review error messages**: Ensure error messages don't expose sensitive implementation details
+
+### Credential Security Checklist
+- [ ] `.env` file is in `.gitignore` (already configured)
+- [ ] Never share your Client ID and Client Secret
+- [ ] Use different credentials for development and production
+- [ ] Enable OAuth 2.0 scope restrictions in SDP if available
+- [ ] Monitor API usage for unauthorized access
+
 ## Installation
 
 1. Clone the repository:

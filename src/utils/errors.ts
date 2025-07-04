@@ -69,8 +69,47 @@ export function formatSDPError(error: SDPError): string {
   }
   
   if (error.details) {
-    message += `\nDetails: ${JSON.stringify(error.details, null, 2)}`;
+    // Sanitize details to avoid exposing sensitive information
+    const sanitizedDetails = sanitizeErrorDetails(error.details);
+    if (sanitizedDetails) {
+      message += `\nDetails: ${JSON.stringify(sanitizedDetails, null, 2)}`;
+    }
   }
   
   return message;
+}
+
+// Helper function to sanitize error details
+function sanitizeErrorDetails(details: any): any {
+  if (!details) return null;
+  
+  // List of sensitive keys to redact
+  const sensitiveKeys = [
+    'password', 'secret', 'token', 'api_key', 'apikey',
+    'authorization', 'auth', 'client_secret', 'client_id',
+    'refresh_token', 'access_token', 'private_key'
+  ];
+  
+  // Deep clone the object to avoid modifying the original
+  const sanitized = JSON.parse(JSON.stringify(details));
+  
+  // Recursively sanitize the object
+  const sanitizeObject = (obj: any): any => {
+    if (typeof obj !== 'object' || obj === null) return obj;
+    
+    for (const key in obj) {
+      const lowerKey = key.toLowerCase();
+      
+      // Check if the key contains sensitive information
+      if (sensitiveKeys.some(sensitive => lowerKey.includes(sensitive))) {
+        obj[key] = '[REDACTED]';
+      } else if (typeof obj[key] === 'object') {
+        obj[key] = sanitizeObject(obj[key]);
+      }
+    }
+    
+    return obj;
+  };
+  
+  return sanitizeObject(sanitized);
 }
