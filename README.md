@@ -2,7 +2,11 @@
 
 A comprehensive integration solution for ManageEngine Service Desk Plus Cloud API that provides both a programmatic API client and an MCP (Model Context Protocol) server for AI assistants like Claude.
 
-## 🚀 Quick Start with Context Engineering
+## 🚀 Quick Start
+
+See our [Quick Start Guide](docs/QUICK_START.md) for a 5-minute setup!
+
+## 🤖 Context Engineering
 
 This project uses **Context Engineering** to enable AI assistants to better understand and work with the codebase. 
 
@@ -214,6 +218,15 @@ npm test
 ```bash
 npm run lint
 ```
+
+## 📚 Documentation
+
+- [API Reference](docs/API_REFERENCE.md) - Detailed API documentation
+- [MCP Tools](docs/MCP_TOOLS.md) - Available MCP tools and usage
+- [Troubleshooting](TROUBLESHOOTING.md) - Common issues and solutions
+- [Security](SECURITY.md) - Security best practices
+- [Contributing](CONTRIBUTING.md) - How to contribute
+- [Changelog](CHANGELOG.md) - Version history
 
 ## Project Structure
 

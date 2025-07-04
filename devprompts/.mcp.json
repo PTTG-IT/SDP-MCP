@@ -1,0 +1,33 @@
+{
+  "mcpServers": {
+    "github": {
+      "type": "stdio",
+      "command": "npx",
+      "args": [
+        "@modelcontextprotocol/server-github"
+      ],
+      "env": {}
+    },
+    "qdrant": {
+      "type": "stdio",
+      "command": "/Users/kalten/.local/bin/uvx",
+      "args": [
+        "mcp-server-qdrant"
+      ],
+      "env": {
+        "QDRANT_URL": "http://localhost:6333",
+        "COLLECTION_NAME": "claude-collection",
+        "EMBEDDING_MODEL": "sentence-transformers/all-MiniLM-L6-v2"
+      }
+    },
+    "apple-mcp": {
+      "type": "stdio",
+      "command": "/Users/kalten/.bun/bin/bunx",
+      "args": [
+        "--bun",
+        "@dhravya/apple-mcp@latest"
+      ],
+      "env": {}
+    }
+  }
+}
