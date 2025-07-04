@@ -30,7 +30,6 @@ export class RateLimitMonitor extends EventEmitter {
   };
   
   private waitTimes: number[] = [];
-  private readonly metricsWindow = 3600000; // 1 hour
   
   constructor(private rateLimiter: EnhancedRateLimiter) {
     super();
@@ -109,9 +108,8 @@ export class RateLimitMonitor extends EventEmitter {
         this.waitTimes.reduce((a, b) => a + b, 0) / this.waitTimes.length;
     }
     
-    // Clean old wait times (keep last hour)
-    const cutoff = Date.now() - this.metricsWindow;
-    this.waitTimes = this.waitTimes.slice(-100); // Keep last 100 for memory efficiency
+    // Clean old wait times (keep last 100 for memory efficiency)
+    this.waitTimes = this.waitTimes.slice(-100);
     
     // Emit periodic report
     this.emit('metricsUpdate', this.getReport());

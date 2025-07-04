@@ -36,3 +36,10 @@ coverage/
 *.tmp
 *.temp
 .cache/
+
+# Test output files
+PROJECT_ID.txt
+PROJECT_INFO.json
+SDP_PROJECT_FINDINGS.md
+PROJECT_TEST_RESULTS.md
+PROJECT_SUMMARY.txt
