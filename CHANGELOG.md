@@ -14,6 +14,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - MCP server implementation for AI assistant integration
 - Request management API (create, update, list, search, close)
 - User management API (get, search, list)
+- **Project management API with full implementation:**
+  - Create, update, get, and list projects
+  - Task management (create, update, complete, list)
+  - Milestone management
+  - Time tracking with worklog entries
+  - Project summary with statistics
+- **11 new MCP tools for project management:**
+  - create_project, update_project, get_project, list_projects
+  - create_task, update_task, complete_task, list_project_tasks
+  - add_worklog, create_milestone, get_project_summary
 - Asset management API stubs (to be implemented)
 - Problem and Change management API stubs (to be implemented)
 - TypeScript support with full type definitions

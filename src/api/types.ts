@@ -37,6 +37,9 @@ export interface SDPListResponse<T> {
   problems?: T[];
   changes?: T[];
   projects?: T[];
+  tasks?: T[];
+  milestones?: T[];
+  worklogs?: T[];
 }
 
 export interface SDPResponse<T> {
@@ -46,6 +49,9 @@ export interface SDPResponse<T> {
   change?: T;
   user?: T;
   project?: T;
+  task?: T;
+  milestone?: T;
+  worklog?: T;
   note?: T;
   response_status: {
     status_code: number;
@@ -172,4 +178,10 @@ export interface ListOptions extends PaginationParams {
   fields?: string[];
   include?: string[];
   filter?: Record<string, any>;
+}
+
+// Date format used by SDP API
+export interface SDPDate {
+  display_value: string;
+  value: string;
 }

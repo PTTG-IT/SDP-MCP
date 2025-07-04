@@ -247,10 +247,141 @@ const change = await client.changes.create({
 const project = await client.projects.create({
   title: 'Office 365 Migration',
   description: 'Migrate all users to Office 365',
-  project_type: 'Implementation',
-  scheduled_start: '2024-02-01',
-  scheduled_end: '2024-03-31'
+  project_type: { name: 'Implementation' },
+  priority: { name: 'High' },
+  owner: { email_id: 'project.manager@company.com' },
+  scheduled_start_time: '2024-02-01T00:00:00Z',
+  scheduled_end_time: '2024-03-31T23:59:59Z',
+  site: { name: 'Main Office' },
+  group: { name: 'IT Projects' }
 });
+```
+
+### Update Project
+
+```typescript
+const updatedProject = await client.projects.update('123456', {
+  status: { name: 'In Progress' },
+  percentage_completion: 45,
+  actual_start_time: '2024-02-05T09:00:00Z'
+});
+```
+
+### Get Project
+
+```typescript
+const project = await client.projects.get('123456');
+```
+
+### List Projects
+
+```typescript
+const projects = await client.projects.list({
+  page: 1,
+  per_page: 20,
+  sort_by: 'created_time',
+  sort_order: 'desc'
+});
+```
+
+## Tasks API
+
+### Create Task
+
+```typescript
+const task = await client.projects.createTask({
+  title: 'Configure Email Migration',
+  description: 'Set up email migration rules and test',
+  project: { id: '123456' },
+  milestone: { id: '789' },
+  owner: { email_id: 'tech@company.com' },
+  priority: { name: 'High' },
+  scheduled_start_time: '2024-02-10T09:00:00Z',
+  scheduled_end_time: '2024-02-15T17:00:00Z',
+  estimated_hours: 16
+});
+```
+
+### Update Task
+
+```typescript
+const updatedTask = await client.projects.updateTask('456789', {
+  status: { name: 'In Progress' },
+  percentage_completion: 75,
+  actual_hours: 12
+});
+```
+
+### Get Task
+
+```typescript
+const task = await client.projects.getTask('456789');
+```
+
+### List Project Tasks
+
+```typescript
+const tasks = await client.projects.listProjectTasks('123456', {
+  page: 1,
+  per_page: 50
+});
+```
+
+## Milestones API
+
+### Create Milestone
+
+```typescript
+const milestone = await client.projects.createMilestone('123456', {
+  title: 'Phase 1 - User Migration',
+  description: 'Migrate first batch of users',
+  owner: { email_id: 'lead@company.com' },
+  scheduled_start_time: '2024-02-01T00:00:00Z',
+  scheduled_end_time: '2024-02-28T23:59:59Z'
+});
+```
+
+### List Project Milestones
+
+```typescript
+const milestones = await client.projects.listMilestones('123456');
+```
+
+## Worklog API
+
+### Add Worklog
+
+```typescript
+// Log time on a task
+const worklog = await client.projects.addWorklog({
+  task: { id: '456789' },
+  description: 'Configured email migration rules',
+  start_time: '2024-02-10T09:00:00Z',
+  end_time: '2024-02-10T12:30:00Z',
+  owner: { email_id: 'tech@company.com' },
+  is_billable: true,
+  worklog_type: { name: 'Development' }
+});
+
+// Log time on a project (without specific task)
+const projectWorklog = await client.projects.addWorklog({
+  project: { id: '123456' },
+  description: 'Project planning meeting',
+  start_time: '2024-02-01T14:00:00Z',
+  end_time: '2024-02-01T15:30:00Z',
+  is_billable: false,
+  worklog_type: { name: 'Meeting' }
+});
+```
+
+### List Worklogs
+
+```typescript
+// List worklogs for a project
+const projectWorklogs = await client.projects.listProjectWorklogs('123456');
+
+// List worklogs for a task
+const taskWorklogs = await client.projects.listTaskWorklogs('456789');
 ```
 
 ## Error Handling

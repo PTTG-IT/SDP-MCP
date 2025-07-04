@@ -1,4 +1,17 @@
 import { z } from 'zod';
+import {
+  createProjectSchema,
+  updateProjectSchema,
+  getProjectSchema,
+  listProjectsSchema,
+  createTaskSchema,
+  updateTaskSchema,
+  completeTaskSchema,
+  listProjectTasksSchema,
+  addWorklogSchema,
+  createMilestoneSchema,
+  getProjectSummarySchema,
+} from './schemas/projects.js';
 
 export interface Tool {
   name: string;
@@ -65,6 +78,51 @@ export const tools: Tool[] = [
   {
     name: "create_change",
     description: "Create a new change request",
+  },
+  // Project Management Tools
+  {
+    name: "create_project",
+    description: "Create a new project in Service Desk Plus",
+  },
+  {
+    name: "update_project",
+    description: "Update an existing project",
+  },
+  {
+    name: "get_project",
+    description: "Get details of a specific project",
+  },
+  {
+    name: "list_projects",
+    description: "List all projects with optional filters",
+  },
+  {
+    name: "create_task",
+    description: "Create a new task in a project",
+  },
+  {
+    name: "update_task",
+    description: "Update an existing task",
+  },
+  {
+    name: "complete_task",
+    description: "Mark a task as completed",
+  },
+  {
+    name: "list_project_tasks",
+    description: "List all tasks for a specific project",
+  },
+  {
+    name: "add_worklog",
+    description: "Log time spent on a task or project",
+  },
+  {
+    name: "create_milestone",
+    description: "Create a new milestone for a project",
+  },
+  {
+    name: "get_project_summary",
+    description: "Get a comprehensive summary of a project including tasks, milestones, and time tracking",
   },
 ];
 
@@ -199,4 +257,17 @@ export const toolSchemas: Record<string, z.ZodSchema> = {
     scheduled_start: z.string().optional().describe("Scheduled start time in ISO format"),
     scheduled_end: z.string().optional().describe("Scheduled end time in ISO format"),
   }),
+
+  // Project Management Tools
+  create_project: createProjectSchema,
+  update_project: updateProjectSchema,
+  get_project: getProjectSchema,
+  list_projects: listProjectsSchema,
+  create_task: createTaskSchema,
+  update_task: updateTaskSchema,
+  complete_task: completeTaskSchema,
+  list_project_tasks: listProjectTasksSchema,
+  add_worklog: addWorklogSchema,
+  create_milestone: createMilestoneSchema,
+  get_project_summary: getProjectSummarySchema,
 };

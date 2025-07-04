@@ -28,13 +28,12 @@ This project uses **Context Engineering** to enable AI assistants to better unde
 - 🤖 MCP server for AI integration
 - 🔄 Automatic rate limiting and retry logic
 - 📚 Support for all major SDP modules:
-  - Requests
-  - Problems
-  - Changes
-  - Assets
-  - Users
-  - Projects
-  - And more...
+  - ✅ Requests (create, update, close, search, assign)
+  - ✅ Projects (full project management with tasks & time tracking)
+  - ✅ Users (search, list, get details)
+  - 🚧 Assets (coming soon)
+  - 🚧 Problems (coming soon)
+  - 🚧 Changes (coming soon)
 - 🛡️ Comprehensive error handling
 - 📝 TypeScript support with full type definitions
 
@@ -258,25 +257,39 @@ service-desk-plus-cloud-api/
 
 ## API Modules
 
-### Requests
+### ✅ Requests (Fully Implemented)
 - Create, update, delete requests
 - Add notes and attachments
 - Change status and assignments
 - Search and filter requests
+- Close requests with resolution
 
-### Assets
+### ✅ Projects (Fully Implemented)
+- Create and manage projects
+- Task management with hierarchy
+- Milestone tracking
+- Time tracking with worklogs
+- Project progress monitoring
+- Resource allocation
+
+### ✅ Users (Fully Implemented)
+- Get user information
+- Search users
+- List all users
+
+### 🚧 Assets (Coming Soon)
 - Manage IT assets
 - Track asset lifecycle
 - Associate assets with users
 - Bulk operations
 
-### Problems
+### 🚧 Problems (Coming Soon)
 - Create and manage problems
 - Link to incidents
 - Root cause analysis
 - Problem resolution tracking
 
-### Changes
+### 🚧 Changes (Coming Soon)
 - Change request management
 - Approval workflows
 - Impact analysis

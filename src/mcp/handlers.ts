@@ -340,6 +340,392 @@ export function createToolHandler(toolName: string, client: SDPClient): ToolHand
       // Note: This would need to be implemented when the changes module is created
       throw new SDPError('Change management is not yet implemented', 'NOT_IMPLEMENTED');
     },
+
+    // Project Management Handlers
+    create_project: async (args) => {
+      const projectData: any = {
+        title: args.title,
+        description: args.description,
+      };
+
+      if (args.project_type) {
+        projectData.project_type = { name: args.project_type };
+      }
+      if (args.priority) {
+        projectData.priority = { name: args.priority };
+      }
+      if (args.owner_email) {
+        projectData.owner = { email_id: args.owner_email };
+      }
+      if (args.scheduled_start) {
+        projectData.scheduled_start_time = args.scheduled_start;
+      }
+      if (args.scheduled_end) {
+        projectData.scheduled_end_time = args.scheduled_end;
+      }
+      if (args.site) {
+        projectData.site = { name: args.site };
+      }
+      if (args.group) {
+        projectData.group = { name: args.group };
+      }
+
+      // Set default status
+      projectData.status = { name: "Open" };
+
+      const project = await client.projects.create(projectData);
+      return `Project created successfully\nID: ${project.id}\nTitle: ${project.title}\nStatus: ${project.status.name}\nOwner: ${project.owner?.name || project.owner?.email || 'Unassigned'}`;
+    },
+
+    update_project: async (args) => {
+      const updateData: any = {};
+      
+      if (args.title) updateData.title = args.title;
+      if (args.description) updateData.description = args.description;
+      if (args.status) updateData.status = { name: args.status };
+      if (args.priority) updateData.priority = { name: args.priority };
+      if (args.owner_email) updateData.owner = { email_id: args.owner_email };
+      if (args.percentage_completion !== undefined) updateData.percentage_completion = args.percentage_completion;
+      if (args.actual_start) updateData.actual_start_time = args.actual_start;
+      if (args.actual_end) updateData.actual_end_time = args.actual_end;
+
+      const project = await client.projects.update(args.project_id, updateData);
+      return `Project ${project.id} updated successfully\nTitle: ${project.title}\nStatus: ${project.status.name}\nCompletion: ${project.percentage_completion || 0}%`;
+    },
+
+    get_project: async (args) => {
+      const project = await client.projects.get(args.project_id);
+      return {
+        id: project.id,
+        title: project.title,
+        description: project.description,
+        status: project.status.name,
+        priority: project.priority?.name,
+        owner: project.owner ? {
+          name: project.owner.name,
+          email: (project.owner as any).email || (project.owner as any).email_id,
+        } : null,
+        scheduled_start: project.scheduled_start_time,
+        scheduled_end: project.scheduled_end_time,
+        actual_start: project.actual_start_time,
+        actual_end: project.actual_end_time,
+        percentage_completion: project.percentage_completion,
+        created_time: project.created_time,
+      };
+    },
+
+    list_projects: async (args) => {
+      const options: any = {
+        page: args.page || 1,
+        per_page: args.per_page || 20,
+      };
+
+      if (args.sort_by) options.sort_by = args.sort_by;
+      if (args.sort_order) options.sort_order = args.sort_order;
+
+      const results = await client.projects.list(options);
+      
+      // Apply filters if needed
+      let filteredProjects = results.data;
+      
+      if (args.status) {
+        filteredProjects = filteredProjects.filter(proj => 
+          proj.status?.name?.toLowerCase() === args.status.toLowerCase()
+        );
+      }
+      
+      if (args.owner) {
+        const owner = args.owner.toLowerCase();
+        filteredProjects = filteredProjects.filter(proj => 
+          proj.owner?.name?.toLowerCase().includes(owner) ||
+          (proj.owner as any)?.email?.toLowerCase().includes(owner)
+        );
+      }
+      
+      const formattedResults = filteredProjects.map(proj => ({
+        id: proj.id,
+        title: proj.title,
+        status: proj.status.name,
+        priority: proj.priority?.name || 'Not set',
+        owner: proj.owner?.name || 'Unassigned',
+        percentage_completion: proj.percentage_completion || 0,
+        scheduled_end: proj.scheduled_end_time,
+      }));
+
+      return {
+        page: results.meta.page,
+        total_count: results.meta.total_count,
+        projects: formattedResults,
+      };
+    },
+
+    create_task: async (args) => {
+      const taskData: any = {
+        title: args.title,
+        description: args.description,
+        project: { id: args.project_id },
+      };
+
+      if (args.milestone_id) {
+        taskData.milestone = { id: args.milestone_id };
+      }
+      if (args.owner_email) {
+        taskData.owner = { email_id: args.owner_email };
+      }
+      if (args.group) {
+        taskData.group = { name: args.group };
+      }
+      if (args.priority) {
+        taskData.priority = { name: args.priority };
+      }
+      if (args.task_type) {
+        taskData.task_type = { name: args.task_type };
+      }
+      if (args.scheduled_start) {
+        taskData.scheduled_start_time = args.scheduled_start;
+      }
+      if (args.scheduled_end) {
+        taskData.scheduled_end_time = args.scheduled_end;
+      }
+      if (args.estimated_hours) {
+        taskData.estimated_hours = args.estimated_hours;
+      }
+      if (args.parent_task_id) {
+        taskData.parent_task = { id: args.parent_task_id };
+      }
+
+      // Set default status
+      taskData.status = { name: "Open" };
+
+      const task = await client.projects.createTask(taskData);
+      return `Task created successfully\nID: ${task.id}\nTitle: ${task.title}\nProject: ${task.project.title || task.project.id}\nStatus: ${task.status.name}\nOwner: ${task.owner?.name || 'Unassigned'}`;
+    },
+
+    update_task: async (args) => {
+      const updateData: any = {};
+      
+      if (args.title) updateData.title = args.title;
+      if (args.description) updateData.description = args.description;
+      if (args.status) updateData.status = { name: args.status };
+      if (args.priority) updateData.priority = { name: args.priority };
+      if (args.owner_email) updateData.owner = { email_id: args.owner_email };
+      if (args.percentage_completion !== undefined) updateData.percentage_completion = args.percentage_completion;
+      if (args.actual_start) updateData.actual_start_time = args.actual_start;
+      if (args.actual_end) updateData.actual_end_time = args.actual_end;
+      if (args.actual_hours !== undefined) updateData.actual_hours = args.actual_hours;
+
+      const task = await client.projects.updateTask(args.task_id, updateData);
+      return `Task ${task.id} updated successfully\nTitle: ${task.title}\nStatus: ${task.status.name}\nCompletion: ${task.percentage_completion || 0}%`;
+    },
+
+    complete_task: async (args) => {
+      const updateData: any = {
+        status: { name: "Completed" },
+        percentage_completion: 100,
+        actual_end_time: new Date().toISOString(),
+      };
+
+      if (args.completion_comments) {
+        updateData.description = args.completion_comments;
+      }
+      if (args.actual_hours !== undefined) {
+        updateData.actual_hours = args.actual_hours;
+      }
+
+      const task = await client.projects.updateTask(args.task_id, updateData);
+      return `Task ${task.id} marked as completed\nTitle: ${task.title}\nActual Hours: ${task.actual_hours || 'Not specified'}`;
+    },
+
+    list_project_tasks: async (args) => {
+      const options: any = {
+        page: args.page || 1,
+        per_page: args.per_page || 20,
+      };
+
+      const results = await client.projects.listProjectTasks(args.project_id, options);
+      
+      // Apply filters if needed
+      let filteredTasks = results.data;
+      
+      if (args.milestone_id) {
+        filteredTasks = filteredTasks.filter(task => 
+          task.milestone?.id === args.milestone_id
+        );
+      }
+      
+      if (args.status) {
+        filteredTasks = filteredTasks.filter(task => 
+          task.status?.name?.toLowerCase() === args.status.toLowerCase()
+        );
+      }
+      
+      if (args.owner) {
+        const owner = args.owner.toLowerCase();
+        filteredTasks = filteredTasks.filter(task => 
+          task.owner?.name?.toLowerCase().includes(owner) ||
+          (task.owner as any)?.email?.toLowerCase().includes(owner)
+        );
+      }
+      
+      const formattedResults = filteredTasks.map(task => ({
+        id: task.id,
+        title: task.title,
+        status: task.status.name,
+        priority: task.priority?.name || 'Not set',
+        owner: task.owner?.name || 'Unassigned',
+        percentage_completion: task.percentage_completion || 0,
+        estimated_hours: task.estimated_hours,
+        actual_hours: task.actual_hours,
+      }));
+
+      return {
+        project_id: args.project_id,
+        total_tasks: formattedResults.length,
+        tasks: formattedResults,
+      };
+    },
+
+    add_worklog: async (args) => {
+      const worklogData: any = {
+        description: args.description,
+        start_time: args.start_time,
+        end_time: args.end_time,
+      };
+
+      if (args.task_id) {
+        worklogData.task = { id: args.task_id };
+      } else if (args.project_id) {
+        worklogData.project = { id: args.project_id };
+      }
+
+      if (args.owner_email) {
+        worklogData.owner = { email_id: args.owner_email };
+      }
+
+      if (args.is_billable !== undefined) {
+        worklogData.is_billable = args.is_billable;
+      }
+
+      if (args.worklog_type) {
+        worklogData.worklog_type = { name: args.worklog_type };
+      }
+
+      const worklog = await client.projects.addWorklog(worklogData);
+      
+      // Calculate time spent
+      const start = new Date(args.start_time);
+      const end = new Date(args.end_time);
+      const hours = (end.getTime() - start.getTime()) / (1000 * 60 * 60);
+      
+      return `Worklog added successfully\nID: ${worklog.id}\nTime Logged: ${hours.toFixed(2)} hours\nBillable: ${worklog.is_billable ? 'Yes' : 'No'}\nDescription: ${worklog.description}`;
+    },
+
+    create_milestone: async (args) => {
+      const milestoneData: any = {
+        title: args.title,
+        description: args.description,
+        status: { name: "Open" },
+      };
+
+      if (args.owner_email) {
+        milestoneData.owner = { email_id: args.owner_email };
+      }
+      if (args.scheduled_start) {
+        milestoneData.scheduled_start_time = args.scheduled_start;
+      }
+      if (args.scheduled_end) {
+        milestoneData.scheduled_end_time = args.scheduled_end;
+      }
+
+      const milestone = await client.projects.createMilestone(args.project_id, milestoneData);
+      return `Milestone created successfully\nID: ${milestone.id}\nTitle: ${milestone.title}\nProject: ${milestone.project.id}\nStatus: ${milestone.status.name}`;
+    },
+
+    get_project_summary: async (args) => {
+      const project = await client.projects.get(args.project_id);
+      const summary: any = {
+        project: {
+          id: project.id,
+          title: project.title,
+          status: project.status.name,
+          percentage_completion: project.percentage_completion || 0,
+          owner: project.owner?.name || 'Unassigned',
+          scheduled_end: project.scheduled_end_time,
+        },
+      };
+
+      if (args.include_milestones) {
+        try {
+          const milestones = await client.projects.listMilestones(args.project_id);
+          summary.milestones = {
+            total: milestones.data.length,
+            completed: milestones.data.filter(m => m.status.name === 'Completed').length,
+            list: milestones.data.map(m => ({
+              id: m.id,
+              title: m.title,
+              status: m.status.name,
+              percentage_completion: m.percentage_completion || 0,
+            })),
+          };
+        } catch (error) {
+          summary.milestones = { error: 'Unable to fetch milestones' };
+        }
+      }
+
+      if (args.include_tasks) {
+        try {
+          const tasks = await client.projects.listProjectTasks(args.project_id);
+          const taskStats = {
+            total: tasks.data.length,
+            completed: tasks.data.filter(t => t.status.name === 'Completed').length,
+            in_progress: tasks.data.filter(t => t.status.name === 'In Progress').length,
+            open: tasks.data.filter(t => t.status.name === 'Open').length,
+          };
+          
+          summary.tasks = {
+            ...taskStats,
+            completion_percentage: taskStats.total > 0 ? Math.round((taskStats.completed / taskStats.total) * 100) : 0,
+            total_estimated_hours: tasks.data.reduce((sum, t) => sum + (t.estimated_hours || 0), 0),
+            total_actual_hours: tasks.data.reduce((sum, t) => sum + (t.actual_hours || 0), 0),
+          };
+        } catch (error) {
+          summary.tasks = { error: 'Unable to fetch tasks' };
+        }
+      }
+
+      if (args.include_worklogs) {
+        try {
+          const worklogs = await client.projects.listProjectWorklogs(args.project_id);
+          const totalHours = worklogs.data.reduce((sum, w) => {
+            if (w.start_time && w.end_time) {
+              const start = new Date((w.start_time as any).value || w.start_time);
+              const end = new Date((w.end_time as any).value || w.end_time);
+              return sum + (end.getTime() - start.getTime()) / (1000 * 60 * 60);
+            }
+            return sum;
+          }, 0);
+
+          summary.time_tracking = {
+            total_worklogs: worklogs.data.length,
+            total_hours_logged: totalHours.toFixed(2),
+            billable_hours: worklogs.data
+              .filter(w => w.is_billable)
+              .reduce((sum, w) => {
+                if (w.start_time && w.end_time) {
+                  const start = new Date((w.start_time as any).value || w.start_time);
+                  const end = new Date((w.end_time as any).value || w.end_time);
+                  return sum + (end.getTime() - start.getTime()) / (1000 * 60 * 60);
+                }
+                return sum;
+              }, 0).toFixed(2),
+          };
+        } catch (error) {
+          summary.time_tracking = { error: 'Unable to fetch worklogs' };
+        }
+      }
+
+      return summary;
+    },
   };
 
   const handler = handlers[toolName];

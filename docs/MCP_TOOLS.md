@@ -278,6 +278,203 @@ Create a new change request.
 Create change "Email server upgrade" scheduled for 2024-01-15 with medium risk
 ```
 
+## Project Management Tools
+
+### create_project
+
+Create a new project in Service Desk Plus.
+
+**Parameters:**
+- `title` (required): Project title
+- `description`: Project description
+- `project_type`: Type of project (e.g., Development, Implementation, Maintenance)
+- `priority`: Priority level (e.g., Low, Medium, High, Critical)
+- `owner_email`: Email of the project owner
+- `scheduled_start`: Scheduled start date in ISO format
+- `scheduled_end`: Scheduled end date in ISO format
+- `site`: Site/location name
+- `group`: Group responsible for the project
+
+**Example:**
+```
+Create project "Service Desk Plus MCP Integration" with description "Build comprehensive MCP server for SDP Cloud API" type Development priority High owner developer@company.com scheduled from 2024-01-01 to 2024-03-31
+```
+
+### update_project
+
+Update an existing project.
+
+**Parameters:**
+- `project_id` (required): ID of the project to update
+- `title`: New project title
+- `description`: New project description
+- `status`: Project status (e.g., Open, In Progress, On Hold, Completed, Cancelled)
+- `priority`: New priority level
+- `owner_email`: New owner email
+- `percentage_completion`: Completion percentage (0-100)
+- `actual_start`: Actual start date in ISO format
+- `actual_end`: Actual end date in ISO format
+
+**Example:**
+```
+Update project 123456 to status "In Progress" with 25% completion
+```
+
+### get_project
+
+Get details of a specific project.
+
+**Parameters:**
+- `project_id` (required): ID of the project to retrieve
+
+**Example:**
+```
+Get details of project 123456
+```
+
+### list_projects
+
+List all projects with optional filters.
+
+**Parameters:**
+- `status`: Filter by status
+- `owner`: Filter by owner name or email
+- `page`: Page number (default: 1)
+- `per_page`: Results per page (default: 20)
+- `sort_by`: Field to sort by (e.g., created_time, title)
+- `sort_order`: Sort order (asc or desc)
+
+**Example:**
+```
+List all projects with status "In Progress" owned by john@company.com
+```
+
+### create_task
+
+Create a new task in a project.
+
+**Parameters:**
+- `title` (required): Task title
+- `description`: Task description
+- `project_id` (required): ID of the project this task belongs to
+- `milestone_id`: ID of the milestone this task belongs to
+- `owner_email`: Email of the task owner
+- `group`: Group responsible for the task
+- `priority`: Priority level (e.g., Low, Medium, High, Critical)
+- `task_type`: Type of task
+- `scheduled_start`: Scheduled start date in ISO format
+- `scheduled_end`: Scheduled end date in ISO format
+- `estimated_hours`: Estimated hours to complete
+- `parent_task_id`: ID of the parent task (for subtasks)
+
+**Example:**
+```
+Create task "Implement authentication module" for project 123456 with owner developer@company.com priority High estimated 16 hours
+```
+
+### update_task
+
+Update an existing task.
+
+**Parameters:**
+- `task_id` (required): ID of the task to update
+- `title`: New task title
+- `description`: New task description
+- `status`: Task status (e.g., Open, In Progress, On Hold, Completed, Cancelled)
+- `priority`: New priority level
+- `owner_email`: New owner email
+- `percentage_completion`: Completion percentage (0-100)
+- `actual_start`: Actual start date in ISO format
+- `actual_end`: Actual end date in ISO format
+- `actual_hours`: Actual hours spent
+
+**Example:**
+```
+Update task 456789 to status "In Progress" with 50% completion and 8 actual hours
+```
+
+### complete_task
+
+Mark a task as completed.
+
+**Parameters:**
+- `task_id` (required): ID of the task to complete
+- `completion_comments`: Comments about task completion
+- `actual_hours`: Total hours spent on the task
+
+**Example:**
+```
+Complete task 456789 with comment "Authentication module fully tested and deployed" actual hours 18
+```
+
+### list_project_tasks
+
+List all tasks for a specific project.
+
+**Parameters:**
+- `project_id` (required): ID of the project
+- `milestone_id`: Filter by milestone ID
+- `status`: Filter by status
+- `owner`: Filter by owner name or email
+- `page`: Page number (default: 1)
+- `per_page`: Results per page (default: 20)
+
+**Example:**
+```
+List all tasks for project 123456 with status "Open"
+```
+
+### add_worklog
+
+Log time spent on a task or project.
+
+**Parameters:**
+- `task_id`: ID of the task (either task_id or project_id required)
+- `project_id`: ID of the project (either task_id or project_id required)
+- `description` (required): Description of work performed
+- `start_time` (required): Start time in ISO format
+- `end_time` (required): End time in ISO format
+- `owner_email`: Email of the person who did the work
+- `is_billable`: Whether this time is billable (default: true)
+- `worklog_type`: Type of work (e.g., Development, Testing, Documentation)
+
+**Example:**
+```
+Add worklog to task 456789 "Implemented user authentication" from 2024-01-15T09:00:00Z to 2024-01-15T12:30:00Z billable type Development
+```
+
+### create_milestone
+
+Create a new milestone for a project.
+
+**Parameters:**
+- `project_id` (required): ID of the project
+- `title` (required): Milestone title
+- `description`: Milestone description
+- `owner_email`: Email of the milestone owner
+- `scheduled_start`: Scheduled start date in ISO format
+- `scheduled_end`: Scheduled end date in ISO format
+
+**Example:**
+```
+Create milestone "Phase 1 - Core Features" for project 123456 scheduled from 2024-01-01 to 2024-01-31
+```
+
+### get_project_summary
+
+Get a comprehensive summary of a project including tasks, milestones, and time tracking.
+
+**Parameters:**
+- `project_id` (required): ID of the project
+- `include_tasks`: Include task summary (default: true)
+- `include_milestones`: Include milestone summary (default: true)
+- `include_worklogs`: Include time tracking summary (default: true)
+
+**Example:**
+```
+Get summary of project 123456 including all details
+```
+
 ## Common Usage Patterns
 
 ### Creating and Tracking Requests
