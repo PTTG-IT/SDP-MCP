@@ -377,12 +377,18 @@ export function createToolHandler(toolName: string, client: SDPClient): ToolHand
       if (args.owner_email) {
         projectData.owner = { email_id: args.owner_email };
       }
+      
+      // Handle date fields
+      const dateFields = [];
       if (args.scheduled_start) {
         projectData.scheduled_start_time = args.scheduled_start;
+        dateFields.push('scheduled_start_time');
       }
       if (args.scheduled_end) {
         projectData.scheduled_end_time = args.scheduled_end;
+        dateFields.push('scheduled_end_time');
       }
+      
       if (args.site) {
         projectData.site = { name: args.site };
       }
@@ -392,6 +398,12 @@ export function createToolHandler(toolName: string, client: SDPClient): ToolHand
 
       // Set default status
       projectData.status = { name: "Open" };
+      
+      // Apply date conversions
+      if (dateFields.length > 0) {
+        const converted = convertDateFields(projectData, dateFields);
+        Object.assign(projectData, converted);
+      }
 
       const project = await client.projects.create(projectData);
       return `Project created successfully\nID: ${project.id}\nTitle: ${project.title}\nStatus: ${project.status.name}\nOwner: ${project.owner?.name || project.owner?.email || 'Unassigned'}`;
@@ -406,8 +418,23 @@ export function createToolHandler(toolName: string, client: SDPClient): ToolHand
       if (args.priority) updateData.priority = { name: args.priority };
       if (args.owner_email) updateData.owner = { email_id: args.owner_email };
       if (args.percentage_completion !== undefined) updateData.percentage_completion = args.percentage_completion;
-      if (args.actual_start) updateData.actual_start_time = args.actual_start;
-      if (args.actual_end) updateData.actual_end_time = args.actual_end;
+      
+      // Convert date fields to SDP format
+      const dateFields = [];
+      if (args.actual_start) {
+        updateData.actual_start_time = args.actual_start;
+        dateFields.push('actual_start_time');
+      }
+      if (args.actual_end) {
+        updateData.actual_end_time = args.actual_end;
+        dateFields.push('actual_end_time');
+      }
+      
+      // Apply date conversions
+      if (dateFields.length > 0) {
+        const converted = convertDateFields(updateData, dateFields);
+        Object.assign(updateData, converted);
+      }
 
       const project = await client.projects.update(args.project_id, updateData);
       return `Project ${project.id} updated successfully\nTitle: ${project.title}\nStatus: ${project.status.name}\nCompletion: ${project.percentage_completion || 0}%`;
