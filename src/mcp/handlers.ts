@@ -642,12 +642,18 @@ export function createToolHandler(toolName: string, client: SDPClient): ToolHand
       if (args.task_type) {
         taskData.task_type = { name: args.task_type };
       }
+      
+      // Handle date fields
+      const dateFields = [];
       if (args.scheduled_start) {
         taskData.scheduled_start_time = args.scheduled_start;
+        dateFields.push('scheduled_start_time');
       }
       if (args.scheduled_end) {
         taskData.scheduled_end_time = args.scheduled_end;
+        dateFields.push('scheduled_end_time');
       }
+      
       if (args.estimated_hours) {
         taskData.estimated_hours = args.estimated_hours;
       }
@@ -657,6 +663,12 @@ export function createToolHandler(toolName: string, client: SDPClient): ToolHand
 
       // Set default status
       taskData.status = { name: "Open" };
+      
+      // Convert date fields to SDP format
+      if (dateFields.length > 0) {
+        const converted = convertDateFields(taskData, dateFields);
+        Object.assign(taskData, converted);
+      }
 
       const task = await client.projects.createTask(taskData);
       return `Task created successfully\nID: ${task.id}\nTitle: ${task.title}\nProject: ${task.project.title || task.project.id}\nStatus: ${task.status.name}\nOwner: ${task.owner?.name || 'Unassigned'}`;
