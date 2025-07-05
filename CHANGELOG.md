@@ -24,6 +24,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - create_project, update_project, get_project, list_projects
   - create_task, update_task, complete_task, list_project_tasks
   - add_worklog, create_milestone, get_project_summary
+- **Field lookup system with caching (Phase 2.1):**
+  - Comprehensive lookup API for priorities, categories, statuses, technicians, etc.
+  - 5-minute cache for performance optimization
+  - Dynamic ID lookup by name functionality
+  - Field mapper utility for automatic name-to-ID conversion
+- **6 new MCP lookup tools:**
+  - get_priorities, get_categories, get_statuses
+  - get_technicians, get_request_types, get_subcategories
+- **Date utility functions:**
+  - ISO to SDPDate format conversion (epoch milliseconds)
+  - Support for nested date fields
+  - Helper functions for date operations
+- **Enhanced create_request handler:**
+  - Accepts both names and IDs for field values
+  - Automatic field mapping with helpful error messages
+  - Proper date format conversion
 - Asset management API stubs (to be implemented)
 - Problem and Change management API stubs (to be implemented)
 - TypeScript support with full type definitions

@@ -10,9 +10,10 @@ This document provides a comprehensive reference for the Service Desk Plus Cloud
 4. [Users API](#users-api)
 5. [Problems API](#problems-api)
 6. [Changes API](#changes-api)
-7. [Projects API](#projects-api)
-8. [Error Handling](#error-handling)
-9. [Rate Limiting](#rate-limiting)
+7. [Lookups API](#lookups-api)
+8. [Projects API](#projects-api)
+9. [Error Handling](#error-handling)
+10. [Rate Limiting](#rate-limiting)
 
 ## Authentication
 
@@ -237,6 +238,105 @@ const change = await client.changes.create({
   scheduled_end_time: '2024-01-15T14:00:00Z',
   reason_for_change: 'Prevent future downtime'
 });
+```
+
+## Lookups API
+
+The Lookups API provides access to system configuration data like priorities, categories, statuses, etc. All lookup methods include automatic caching with a 5-minute TTL.
+
+### Get Priorities
+
+```typescript
+const priorities = await client.lookups.getPriorities();
+// Returns: Priority[]
+```
+
+### Get Categories
+
+```typescript
+const categories = await client.lookups.getCategories();
+// Returns: Category[]
+```
+
+### Get Statuses
+
+```typescript
+const statuses = await client.lookups.getStatuses();
+// Returns: Status[]
+```
+
+### Get Technicians
+
+```typescript
+const technicians = await client.lookups.getTechnicians();
+// Returns: Technician[]
+```
+
+### Get Request Types
+
+```typescript
+const requestTypes = await client.lookups.getRequestTypes();
+// Returns: RequestType[]
+```
+
+### Get Levels
+
+```typescript
+const levels = await client.lookups.getLevels();
+// Returns: Level[]
+```
+
+### Get Modes
+
+```typescript
+const modes = await client.lookups.getModes();
+// Returns: Mode[]
+```
+
+### Get Impacts
+
+```typescript
+const impacts = await client.lookups.getImpacts();
+// Returns: Impact[]
+```
+
+### Get Urgencies
+
+```typescript
+const urgencies = await client.lookups.getUrgencies();
+// Returns: Urgency[]
+```
+
+### Get Subcategories
+
+```typescript
+// Get all subcategories
+const allSubcategories = await client.lookups.getSubcategories();
+
+// Get subcategories for a specific category
+const hardwareSubcategories = await client.lookups.getSubcategories('category-id');
+// Returns: Subcategory[]
+```
+
+### Find ID by Name
+
+```typescript
+// Find priority ID by name
+const priorityId = await client.lookups.findIdByName('priority', 'High');
+
+// Find technician ID by email
+const technicianId = await client.lookups.findIdByName('technician', 'tech@company.com');
+// Returns: string | undefined
+```
+
+### Clear Cache
+
+```typescript
+// Clear specific cache entry
+client.lookups.clearCache('priorities');
+
+// Clear all cache
+client.lookups.clearCache();
 ```
 
 ## Projects API

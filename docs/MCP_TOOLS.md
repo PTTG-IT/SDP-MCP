@@ -278,6 +278,124 @@ Create a new change request.
 Create change "Email server upgrade" scheduled for 2024-01-15 with medium risk
 ```
 
+## Lookup Tools
+
+These tools help you discover valid IDs and options for use in other operations.
+
+### get_priorities
+
+Get all available priority options with their IDs.
+
+**Parameters:** None
+
+**Returns:**
+- `total`: Number of priorities
+- `priorities`: Array of priority objects with:
+  - `id`: Priority ID
+  - `name`: Priority name (e.g., "High", "Medium", "Low")
+  - `color`: Priority color code
+
+**Example:**
+```
+Get all priorities
+```
+
+### get_categories
+
+Get all available category options with their IDs.
+
+**Parameters:** None
+
+**Returns:**
+- `total`: Number of categories
+- `categories`: Array of category objects with:
+  - `id`: Category ID
+  - `name`: Category name
+  - `description`: Category description
+  - `parent_category`: Parent category name (if applicable)
+
+**Example:**
+```
+Get all categories
+```
+
+### get_statuses
+
+Get all available status options with their IDs.
+
+**Parameters:** None
+
+**Returns:**
+- `total`: Number of statuses
+- `statuses`: Array of status objects with:
+  - `id`: Status ID
+  - `name`: Status name
+  - `stage`: Status stage
+  - `color`: Status color code
+
+**Example:**
+```
+Get all statuses
+```
+
+### get_technicians
+
+Get all available technicians with their IDs and emails.
+
+**Parameters:** None
+
+**Returns:**
+- `total`: Number of technicians
+- `technicians`: Array of technician objects with:
+  - `id`: Technician ID
+  - `name`: Technician name
+  - `email`: Technician email address
+  - `department`: Department name
+  - `designation`: Job title/designation
+
+**Example:**
+```
+Get all technicians
+```
+
+### get_request_types
+
+Get all available request type options with their IDs.
+
+**Parameters:** None
+
+**Returns:**
+- `total`: Number of request types
+- `request_types`: Array of request type objects with:
+  - `id`: Request type ID
+  - `name`: Request type name
+  - `description`: Request type description
+
+**Example:**
+```
+Get all request types
+```
+
+### get_subcategories
+
+Get subcategories for a specific category.
+
+**Parameters:**
+- `category_name` (required): Name of the parent category
+
+**Returns:**
+- `category`: Parent category name
+- `total`: Number of subcategories
+- `subcategories`: Array of subcategory objects with:
+  - `id`: Subcategory ID
+  - `name`: Subcategory name
+  - `description`: Subcategory description
+
+**Example:**
+```
+Get subcategories for category "Hardware"
+```
+
 ## Project Management Tools
 
 ### create_project
