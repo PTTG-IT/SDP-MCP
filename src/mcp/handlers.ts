@@ -3,6 +3,7 @@ import { SDPError } from '../utils/errors.js';
 import { lookupHandlers } from './handlers/lookups.js';
 import { FieldMapper } from '../utils/fieldMapper.js';
 import { convertDateFields } from '../utils/dateUtils.js';
+import { ProjectDeduplicationService } from './projectDeduplication.js';
 
 export type ToolHandler = (args: any) => Promise<any>;
 
@@ -363,6 +364,31 @@ export function createToolHandler(toolName: string, client: SDPClient): ToolHand
 
     // Project Management Handlers
     create_project: async (args) => {
+      // Check for duplicates first
+      const deduplicationService = new ProjectDeduplicationService(client);
+      const duplicateCheck = await deduplicationService.checkForDuplicates(
+        args.title,
+        args.description
+      );
+      
+      if (duplicateCheck.isDuplicate) {
+        const suggestions = deduplicationService.getSuggestions(
+          duplicateCheck.existingProject!,
+          args.title
+        );
+        
+        return `⚠️  Duplicate project detected!\n\n` +
+          `${duplicateCheck.reason}\n\n` +
+          `Existing project:\n` +
+          `- ID: ${duplicateCheck.existingProject!.id}\n` +
+          `- Title: ${duplicateCheck.existingProject!.title}\n` +
+          `- Status: ${typeof duplicateCheck.existingProject!.status === 'string' ? duplicateCheck.existingProject!.status : duplicateCheck.existingProject!.status.name}\n` +
+          `- Owner: ${duplicateCheck.existingProject!.owner?.name || 'Unassigned'}\n\n` +
+          `Suggestions:\n` +
+          suggestions.map(s => `- ${s}`).join('\n') +
+          `\n\nTo proceed anyway, use update_project with ID ${duplicateCheck.existingProject!.id}`;
+      }
+      
       const projectData: any = {
         title: args.title,
         description: args.description,
