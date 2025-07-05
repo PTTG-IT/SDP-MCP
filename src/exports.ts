@@ -9,7 +9,8 @@ export { OptimizedSDPClient } from './api/optimizedClient.js';
 // API Modules
 export { RequestsAPI } from './api/modules/requests.js';
 export { ProjectsAPI } from './api/modules/projects.js';
-export { UsersAPI } from './api/modules/users.js';
+export { RequestersAPI } from './api/modules/requesters.js';
+export { TechniciansAPI } from './api/modules/technicians.js';
 export { AssetsAPI } from './api/modules/assets.js';
 export { ProblemsAPI } from './api/modules/problems.js';
 export { ChangesAPI } from './api/modules/changes.js';

@@ -113,16 +113,19 @@ export const lookupHandlers = {
 
   get_technicians: async () => {
     const client = getClient();
-    const technicians = await client.lookups.getTechnicians();
+    // Use the technicians API directly instead of lookups
+    const response = await client.technicians.list({ per_page: 100 });
     
     return {
-      total: technicians.length,
-      technicians: technicians.map((t: any) => ({
+      total: response.technicians?.length || 0,
+      technicians: (response.technicians || []).map((t: any) => ({
         id: t.id,
         name: t.name,
-        email: t.email_id,
-        department: t.department,
-        designation: t.designation,
+        email: t.email_id || t.email,
+        department: t.department?.name,
+        job_title: t.job_title,
+        mobile: t.mobile,
+        phone: t.phone,
       })),
     };
   },

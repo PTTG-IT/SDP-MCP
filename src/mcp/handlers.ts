@@ -302,54 +302,142 @@ export function createToolHandler(toolName: string, client: SDPClient): ToolHand
     },
 
     get_user: async (args) => {
-      // Note: This would need to be implemented when the users module is fully created
-      if (args.user_id) {
-        const user = await client.users.get(args.user_id);
-        return {
-          id: user.id,
-          name: user.name,
-          email: user.email,
-          phone: user.phone,
-          department: user.department?.name,
-          site: user.site?.name,
-          is_vip: user.is_vip,
-        };
-      } else if (args.email) {
-        const results = await client.users.search(args.email);
-        if (results.data.length === 0) {
-          throw new SDPError('User not found', 'NOT_FOUND');
+      // Try to find user as requester first, then as technician
+      let user: any = null;
+      let userType = 'unknown';
+      
+      try {
+        if (args.user_id) {
+          // Try requester first
+          try {
+            user = await client.requesters.get(args.user_id);
+            userType = 'requester';
+          } catch (e) {
+            // If not found as requester, try technician
+            user = await client.technicians.get(args.user_id);
+            userType = 'technician';
+          }
+        } else if (args.email) {
+          // Search requesters first
+          try {
+            const requesterResults = await client.requesters.search(args.email);
+            if (requesterResults.requesters && requesterResults.requesters.length > 0) {
+              user = requesterResults.requesters[0];
+              userType = 'requester';
+            }
+          } catch (e) {
+            // Ignore search errors
+          }
+          
+          // If not found in requesters, search technicians
+          if (!user) {
+            const techResults = await client.technicians.search(args.email);
+            if (techResults.technicians && techResults.technicians.length > 0) {
+              user = techResults.technicians[0];
+              userType = 'technician';
+            }
+          }
+          
+          if (!user) {
+            throw new SDPError('User not found', 'NOT_FOUND');
+          }
+        } else {
+          throw new SDPError('Either user_id or email must be provided', 'INVALID_PARAMS');
         }
-        const user = results.data[0];
+        
         return {
           id: user.id,
           name: user.name,
-          email: user.email,
+          email: user.email_id || user.email,
           phone: user.phone,
+          mobile: user.mobile,
           department: user.department?.name,
-          site: user.site?.name,
-          is_vip: user.is_vip,
+          job_title: user.job_title,
+          user_type: userType,
+          is_vip: userType === 'requester' ? user.is_vipuser : false,
+          is_technician: userType === 'technician',
         };
+      } catch (error) {
+        if (error instanceof SDPError) throw error;
+        throw new SDPError(`Failed to get user: ${error instanceof Error ? error.message : String(error)}`, 'API_ERROR');
       }
-      throw new SDPError('Either user_id or email must be provided', 'INVALID_PARAMS');
     },
 
     search_users: async (args) => {
-      const results = await client.users.search(args.query, {
-        per_page: args.limit || 20,
-      });
-
-      const formattedResults = results.data.map(user => ({
-        id: user.id,
-        name: user.name,
-        email: user.email,
-        department: user.department?.name,
-        site: user.site?.name,
-      }));
-
-      return {
-        total_count: results.meta.total_count,
-        users: formattedResults,
-      };
+      try {
+        const allUsers = [];
+        let totalCount = 0;
+        
+        // Search requesters
+        try {
+          const requesterResults = await client.requesters.search(args.query, {
+            limit: args.limit || 20,
+          });
+          if (requesterResults.requesters) {
+            allUsers.push(...requesterResults.requesters.map(r => ({
+              ...r,
+              user_type: 'requester',
+              email: r.email_id,
+            })));
+            totalCount += requesterResults.requesters.length;
+          }
+        } catch (e) {
+          // Continue even if requesters search fails
+        }
+        
+        // Search technicians
+        try {
+          const techResults = await client.technicians.search(args.query, {
+            limit: args.limit || 20,
+          });
+          if (techResults.technicians) {
+            allUsers.push(...techResults.technicians.map(t => ({
+              ...t,
+              user_type: 'technician',
+              email: t.email_id,
+            })));
+            totalCount += techResults.technicians.length;
+          }
+        } catch (e) {
+          // Continue even if technicians search fails
+        }
+        
+        // Apply department filter if provided
+        let filteredUsers = allUsers;
+        if (args.department) {
+          filteredUsers = allUsers.filter(u => 
+            u.department?.name?.toLowerCase().includes(args.department.toLowerCase())
+          );
+        }
+        
+        // Apply site filter if provided
+        if (args.site) {
+          filteredUsers = filteredUsers.filter(u => 
+            u.site?.name?.toLowerCase().includes(args.site.toLowerCase())
+          );
+        }
+        
+        // Limit results
+        const limitedUsers = filteredUsers.slice(0, args.limit || 20);
+        
+        const formattedResults = limitedUsers.map(user => ({
+          id: user.id,
+          name: user.name,
+          email: user.email,
+          department: user.department?.name,
+          job_title: user.job_title,
+          user_type: user.user_type,
+          is_vip: (user as any).is_vipuser || false,
+          is_technician: (user as any).is_technician || user.user_type === 'technician',
+        }));
+        
+        return {
+          total_count: filteredUsers.length,
+          users: formattedResults,
+        };
+      } catch (error) {
+        throw new SDPError(`Failed to search users: ${error instanceof Error ? error.message : String(error)}`, 'API_ERROR');
+      }
     },
 
     create_problem: async (_args) => {

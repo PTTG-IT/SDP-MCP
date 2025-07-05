@@ -28,11 +28,11 @@ These tools return "NOT_IMPLEMENTED" error:
 
 These tools are implemented but return API errors:
 
-### User Management
-- `get_user` - Returns: 404 Not Found
-  - Possible cause: Users API endpoint might be different or require admin scope
-- `search_users` - Returns: 404 Not Found
-  - Same issue as get_user
+### User Management - FIXED ✅
+- ~~`get_user` - Returns: 404 Not Found~~
+  - **FIXED**: Split users into `/requesters` and `/technicians` endpoints
+- ~~`search_users` - Returns: 404 Not Found~~
+  - **FIXED**: MCP handlers now search both requesters and technicians
 
 ### Project Task Management
 - `list_project_tasks` - Returns: "EXTRA_PARAM_FOUND" validation error
@@ -47,7 +47,7 @@ These tools fail with authentication errors:
 - `get_priorities` - Returns: "Authentication failed"
 - `get_categories` - Not tested (likely same issue)
 - `get_statuses` - Not tested (likely same issue)
-- `get_technicians` - Not tested (likely same issue)
+- `get_technicians` - **PARTIALLY FIXED**: Now uses technicians.list() API directly
 - `get_request_types` - Not tested (likely same issue)
 - `get_subcategories` - Not tested (likely same issue)
 

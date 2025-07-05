@@ -52,8 +52,16 @@ If you continue getting "invalid scope" errors:
 ## What We Know Works
 
 From our testing:
-- `SDPOnDemand.requests.ALL` - Confirmed working with client_credentials
-- `SDPOnDemand.setup.READ` - Mentioned in documentation
-- `SDPOnDemand.setup.CREATE` - Mentioned in documentation
-- `SDPOnDemand.projects.READ` - Mentioned in documentation
-- `SDPOnDemand.assets.READ` - Mentioned in documentation
+- `SDPOnDemand.requests.ALL` - Confirmed working
+- `SDPOnDemand.projects.ALL` - Confirmed working with refresh token
+- `SDPOnDemand.assets.ALL` - Confirmed working with refresh token
+- `SDPOnDemand.users.ALL` - Confirmed working with refresh token
+- `SDPOnDemand.setup.READ` - Needed for lookup tools (priorities, categories, etc.)
+- `SDPOnDemand.setup.ALL` - Full admin access (alternative to setup.READ)
+
+## Recommended Full Scope List
+
+For complete MCP functionality, use:
+```
+SDPOnDemand.requests.ALL,SDPOnDemand.projects.ALL,SDPOnDemand.assets.ALL,SDPOnDemand.users.ALL,SDPOnDemand.setup.READ
+```

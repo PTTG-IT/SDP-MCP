@@ -68,7 +68,8 @@ export class OptimizedSDPClient extends SDPClient {
     // Store original modules
     const originalRequests = this.requests;
     const originalProjects = this.projects;
-    const originalUsers = this.users;
+    const originalRequesters = this.requesters;
+    const originalTechnicians = this.technicians;
     const originalAssets = this.assets;
     const originalProblems = this.problems;
     const originalChanges = this.changes;
@@ -77,7 +78,8 @@ export class OptimizedSDPClient extends SDPClient {
     // Create wrapped versions
     this.requests = this.wrapModule(originalRequests, 'requests');
     this.projects = this.wrapModule(originalProjects, 'projects');
-    this.users = this.wrapModule(originalUsers, 'users');
+    this.requesters = this.wrapModule(originalRequesters, 'requesters');
+    this.technicians = this.wrapModule(originalTechnicians, 'technicians');
     this.assets = this.wrapModule(originalAssets, 'assets');
     this.problems = this.wrapModule(originalProblems, 'problems');
     this.changes = this.wrapModule(originalChanges, 'changes');

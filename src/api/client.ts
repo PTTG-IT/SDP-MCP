@@ -4,7 +4,8 @@ import { RequestsAPI } from './modules/requests.js';
 import { AssetsAPI } from './modules/assets.js';
 import { ProblemsAPI } from './modules/problems.js';
 import { ChangesAPI } from './modules/changes.js';
-import { UsersAPI } from './modules/users.js';
+import { RequestersAPI } from './modules/requesters.js';
+import { TechniciansAPI } from './modules/technicians.js';
 import { ProjectsAPI } from './modules/projects.js';
 import { LookupsAPI } from './modules/lookups.js';
 import { SDPError, SDPAuthError, SDPRateLimitError, SDPValidationError } from '../utils/errors.js';
@@ -29,7 +30,8 @@ export class SDPClient {
   public assets: AssetsAPI;
   public problems: ProblemsAPI;
   public changes: ChangesAPI;
-  public users: UsersAPI;
+  public requesters: RequestersAPI;
+  public technicians: TechniciansAPI;
   public projects: ProjectsAPI;
   public lookups: LookupsAPI;
 
@@ -126,7 +128,8 @@ export class SDPClient {
     this.assets = new AssetsAPI(this.axiosInstance);
     this.problems = new ProblemsAPI(this.axiosInstance);
     this.changes = new ChangesAPI(this.axiosInstance);
-    this.users = new UsersAPI(this.axiosInstance);
+    this.requesters = new RequestersAPI(this.axiosInstance);
+    this.technicians = new TechniciansAPI(this.axiosInstance);
     this.projects = new ProjectsAPI(this.axiosInstance);
     this.lookups = new LookupsAPI(this.axiosInstance);
   }
