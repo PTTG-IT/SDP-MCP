@@ -23,19 +23,20 @@ This project uses **Context Engineering** to enable AI assistants to better unde
 
 ## Features
 
-- 🔐 OAuth 2.0 authentication
+- 🔐 OAuth 2.0 authentication with Self Client support
 - 📦 Full API client for Service Desk Plus Cloud
 - 🤖 MCP server for AI integration
 - 🔄 Automatic rate limiting and retry logic
 - 📚 Support for all major SDP modules:
   - ✅ Requests (create, update, close, search, assign)
   - ✅ Projects (full project management with tasks & time tracking)
+  - ✅ Assets (list, get, create, update)
   - ✅ Users (search, list, get details)
-  - 🚧 Assets (coming soon)
   - 🚧 Problems (coming soon)
   - 🚧 Changes (coming soon)
 - 🛡️ Comprehensive error handling
 - 📝 TypeScript support with full type definitions
+- 🔑 Full OAuth scope support with refresh token flow
 
 ## Prerequisites
 
@@ -83,6 +84,7 @@ SDP_CLIENT_ID=your_client_id
 SDP_CLIENT_SECRET=your_client_secret
 SDP_BASE_URL=https://your-domain.com  # Your SDP portal URL (without /app/)
 SDP_INSTANCE_NAME=your_instance  # Found in Admin > Instance Settings
+SDP_REFRESH_TOKEN=your_refresh_token  # Generated via Self Client setup (see OAuth Setup below)
 ```
 
 **Important Notes:**
@@ -106,7 +108,29 @@ For Service Desk Plus **Cloud**, OAuth credentials are managed through the Zoho 
 **Important Notes:**
 - Use your domain-specific Zoho Developer Console based on your data center
 - For on-premise Service Desk Plus installations, API keys are generated differently (Admin → Technicians)
-- Configure appropriate redirect URIs if needed for your application
+- Self Client requires a one-time OAuth setup to get refresh token (see OAuth Setup section below)
+
+## OAuth Setup (Self Client)
+
+For full API access, you need to complete a one-time OAuth setup:
+
+1. **Generate Grant Code**:
+   - Go to your Self Client in Zoho Developer Console
+   - Click "Generate Code" tab
+   - Enter scopes: `SDPOnDemand.requests.ALL,SDPOnDemand.projects.ALL,SDPOnDemand.assets.ALL,SDPOnDemand.users.ALL`
+   - Set time duration: 10 minutes
+   - Copy the code immediately
+
+2. **Exchange for Refresh Token**:
+   ```bash
+   node scripts/setup-self-client.js
+   ```
+   Follow the prompts to enter your Client ID, Secret, and Grant Code.
+
+3. **Verify Setup**:
+   The script will automatically add the refresh token to your `.env` file.
+
+For detailed instructions, see [OAuth Setup Guide](docs/OAUTH_SETUP_COMPLETE_GUIDE.md) or [Quick Reference](docs/OAUTH_QUICK_REFERENCE.md).
 
 ## Usage
 
@@ -126,7 +150,8 @@ Add to your `claude_desktop_config.json`:
         "SDP_CLIENT_ID": "your_client_id",
         "SDP_CLIENT_SECRET": "your_client_secret",
         "SDP_BASE_URL": "https://your-domain.com",
-        "SDP_INSTANCE_NAME": "your_instance"
+        "SDP_INSTANCE_NAME": "your_instance",
+        "SDP_REFRESH_TOKEN": "your_refresh_token"
       }
     }
   }
@@ -222,6 +247,8 @@ npm run lint
 
 - [API Reference](docs/API_REFERENCE.md) - Detailed API documentation
 - [MCP Tools](docs/MCP_TOOLS.md) - Available MCP tools and usage
+- [OAuth Setup Guide](docs/OAUTH_SETUP_COMPLETE_GUIDE.md) - Complete OAuth setup instructions
+- [OAuth Quick Reference](docs/OAUTH_QUICK_REFERENCE.md) - Quick OAuth troubleshooting
 - [Troubleshooting](TROUBLESHOOTING.md) - Common issues and solutions
 - [Security](SECURITY.md) - Security best practices
 - [Contributing](CONTRIBUTING.md) - How to contribute
