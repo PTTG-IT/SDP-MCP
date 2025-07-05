@@ -2,6 +2,26 @@
 
 A comprehensive integration solution for ManageEngine Service Desk Plus Cloud API that provides both a programmatic API client and an MCP (Model Context Protocol) server for AI assistants like Claude.
 
+## 📊 MCP Tool Status (32 Total)
+
+| Status | Count | Description |
+|--------|-------|-------------|
+| ✅ **Working** | 16 | Fully functional and tested |
+| ⚠️ **Partially Working** | 1 | Has minor issues |
+| ❌ **Not Working** | 9 | Not implemented or auth issues |
+| 🔧 **Untested** | 6 | Implemented but needs testing |
+
+**Quick Overview:**
+- ✅ **Request Management**: All 8 tools working (create, update, close, search, etc.)
+- ✅ **User Management**: Both tools working (fixed by splitting requesters/technicians)
+- ✅ **Core Projects**: 6/11 tools working (create, update, list, summary)
+- ⚠️ **Project Tasks**: 1 tool has pagination issues, 5 need testing
+- ❌ **Assets**: 3 tools not implemented (module missing)
+- ❌ **Lookups**: 4 tools need SDPOnDemand.setup.READ scope
+- ❌ **Problems/Changes**: Not implemented
+
+[View detailed tool status →](docs/CURRENT_TOOL_STATUS.md)
+
 ## 🚀 Quick Start
 
 See our [Quick Start Guide](docs/QUICK_START.md) for a 5-minute setup!
@@ -27,13 +47,14 @@ This project uses **Context Engineering** to enable AI assistants to better unde
 - 📦 Full API client for Service Desk Plus Cloud
 - 🤖 MCP server for AI integration
 - 🔄 Automatic rate limiting and retry logic
-- 📚 Support for all major SDP modules:
-  - ✅ Requests (create, update, close, search, assign)
-  - ✅ Projects (full project management with tasks & time tracking)
-  - ✅ Assets (list, get, create, update)
-  - ✅ Users (search, list, get details)
-  - 🚧 Problems (coming soon)
-  - 🚧 Changes (coming soon)
+- 📚 Support for major SDP modules:
+  - ✅ **Requests** - All operations working (create, update, close, search, assign, notes)
+  - ✅ **Projects** - Core features working (create, update, list, summary)
+  - ✅ **Users** - Fully working (split into requesters/technicians)
+  - ⚠️ **Tasks** - Partially working (list has issues, others untested)
+  - ❌ **Assets** - Not implemented yet
+  - ❌ **Problems** - Not implemented yet
+  - ❌ **Changes** - Not implemented yet
 - 🛡️ Comprehensive error handling
 - 📝 TypeScript support with full type definitions
 - 🔑 Full OAuth scope support with refresh token flow

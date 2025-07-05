@@ -5,7 +5,33 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [1.1.0] - 2025-01-05
+
+### Added
+- Comprehensive tool status documentation (CURRENT_TOOL_STATUS.md)
+- Tool status summary prominently displayed in README  
+- Detailed status tracking for all 32 MCP tools
+
+### Fixed
+- **Users API (Major Fix)**: Resolved 404 errors by splitting into requesters/technicians
+  - Created separate `RequestersAPI` and `TechniciansAPI` modules
+  - Updated SDPClient to use new modules instead of generic users
+  - Enhanced MCP handlers to search both user types
+  - Unified response format with `user_type` field
+- **get_technicians lookup**: Now uses direct technicians.list() API instead of broken lookup endpoint
+
+### Changed
+- Updated README with accurate module status and tool counts
+- Improved documentation structure with clear status indicators
+- Removed generic users module in favor of requesters/technicians split
+
+### Documentation
+- Created USERS_API_FIX.md with detailed explanation and examples
+- Updated NON_FUNCTIONAL_TOOLS_REPORT.md marking user tools as fixed
+- Added CURRENT_TOOL_STATUS.md for quick tool status reference
+- Updated exports to include new requesters/technicians modules
+
+## [1.0.0] - 2025-01-05
 
 ### Added
 - Initial release of Service Desk Plus Cloud API MCP Server
@@ -62,10 +88,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fixed required fields for request creation
 
 ### Known Issues
-- Search endpoint not available in SDP API (using client-side filtering)
-- Asset, Problem, and Change APIs not yet implemented
-- Close endpoint may not work as expected (use update with status instead)
-
-## [1.0.0] - TBD
-
-- Initial public release
+- Lookup tools require SDPOnDemand.setup.READ scope for authentication
+- Assets module not implemented (API exists, implementation pending)
+- Problems/Changes modules may not be available in Cloud API
+- Project task list returns EXTRA_PARAM_FOUND with pagination parameters
+- Several project task tools untested (create_task, update_task, etc.)
