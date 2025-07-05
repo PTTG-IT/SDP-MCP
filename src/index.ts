@@ -8,30 +8,21 @@ import {
 import { zodToJsonSchema } from 'zod-to-json-schema';
 import dotenv from 'dotenv';
 
-import { SDPClient } from './api/client.js';
 import { tools, toolSchemas } from './mcp/tools.js';
 import { createToolHandler } from './mcp/handlers.js';
 import { SDPError, formatSDPError } from './utils/errors.js';
-import { loadConfig } from './utils/config.js';
+import { getClient } from './utils/clientFactory.js';
 
 // Load environment variables
 dotenv.config();
 
-// Initialize configuration
-const config = loadConfig();
-
-// Initialize API client
-const sdpClient = new SDPClient({
-  clientId: config.clientId,
-  clientSecret: config.clientSecret,
-  baseUrl: config.baseUrl,
-  instanceName: config.instanceName,
-});
+// Get singleton API client
+const sdpClient = getClient();
 
 // Initialize MCP server
 const server = new Server(
   {
-    name: config.serverName || "service-desk-plus",
+    name: "service-desk-plus",
     version: "1.0.0",
   },
   {

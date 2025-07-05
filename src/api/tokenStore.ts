@@ -1,8 +1,14 @@
 import { TokenResponse } from './auth.js';
+import { Mutex } from '../utils/mutex.js';
 
 /**
  * Singleton token store to share tokens across all client instances
  * This prevents requesting new tokens for each operation
+ * 
+ * OAuth Limits:
+ * - Access tokens expire after 1 hour (3600 seconds)
+ * - Maximum 5 refresh token requests per minute
+ * - Maximum 10 access tokens per 10 minutes per refresh token
  */
 export class TokenStore {
   private static instance: TokenStore;
@@ -12,6 +18,8 @@ export class TokenStore {
   private tokenExpiry: Date | null = null;
   private tokenRequestCount = 0;
   private tokenRequestResetTime: Date = new Date();
+  private refreshMutex = new Mutex();
+  private lastRefreshTime: Date | null = null;
 
   private constructor() {}
 
@@ -64,9 +72,13 @@ export class TokenStore {
       this.refreshToken = response.refresh_token;
     }
     
-    // Calculate token expiry (subtract 60 seconds for safety margin)
-    const expiresIn = response.expires_in - 60;
+    // Calculate token expiry (subtract 5 minutes for safety margin)
+    // Tokens expire after 1 hour (3600 seconds)
+    const safetyMarginSeconds = 300; // 5 minutes
+    const expiresIn = response.expires_in - safetyMarginSeconds;
     this.tokenExpiry = new Date(Date.now() + expiresIn * 1000);
+    
+    console.log(`Token stored. Expires at: ${this.tokenExpiry.toISOString()} (${expiresIn} seconds from now)`);
   }
 
   /**
@@ -97,5 +109,50 @@ export class TokenStore {
     
     const now = new Date();
     return Math.max(0, this.tokenRequestResetTime.getTime() - now.getTime());
+  }
+
+  /**
+   * Get the refresh mutex for preventing concurrent refresh attempts
+   */
+  getRefreshMutex(): Mutex {
+    return this.refreshMutex;
+  }
+
+  /**
+   * Check if enough time has passed since last refresh (prevent rapid refreshes)
+   */
+  canRefreshNow(): boolean {
+    if (!this.lastRefreshTime) return true;
+    
+    const now = new Date();
+    const timeSinceLastRefresh = now.getTime() - this.lastRefreshTime.getTime();
+    const minimumRefreshInterval = 5000; // 5 seconds minimum between refreshes
+    
+    return timeSinceLastRefresh >= minimumRefreshInterval;
+  }
+
+  /**
+   * Record that a refresh was attempted
+   */
+  recordRefreshAttempt(): void {
+    this.lastRefreshTime = new Date();
+  }
+
+  /**
+   * Get debug information about token state
+   */
+  getDebugInfo(): object {
+    return {
+      hasAccessToken: !!this.accessToken,
+      hasRefreshToken: !!this.refreshToken,
+      tokenExpiry: this.tokenExpiry?.toISOString() || null,
+      isTokenValid: this.isTokenValid(),
+      tokenRequestCount: this.tokenRequestCount,
+      tokenRequestResetTime: this.tokenRequestResetTime.toISOString(),
+      lastRefreshTime: this.lastRefreshTime?.toISOString() || null,
+      canRequestToken: this.canRequestToken(),
+      canRefreshNow: this.canRefreshNow(),
+      refreshMutexLocked: this.refreshMutex.isLocked()
+    };
   }
 }

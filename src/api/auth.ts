@@ -48,18 +48,37 @@ export class AuthManager {
       return this.tokenStore.getTokens().accessToken!;
     }
 
+    console.log('Token expired or missing, need to refresh. Debug info:', this.tokenStore.getDebugInfo());
+
     const { refreshToken } = this.tokenStore.getTokens();
     
     if (refreshToken) {
-      try {
-        await this.refreshAccessToken();
-        return this.tokenStore.getTokens().accessToken!;
-      } catch (error) {
-        // If refresh fails, try to get a new token
-        console.error('Token refresh failed:', error);
-        // Don't fall back to client credentials if we have a refresh token
-        throw error;
-      }
+      // Use mutex to prevent concurrent refresh attempts
+      const mutex = this.tokenStore.getRefreshMutex();
+      
+      return await mutex.runExclusive(async () => {
+        // Double-check token validity inside mutex (another request might have refreshed it)
+        if (this.tokenStore.isTokenValid()) {
+          console.log('Token was refreshed by another request');
+          return this.tokenStore.getTokens().accessToken!;
+        }
+
+        // Check if we're refreshing too rapidly
+        if (!this.tokenStore.canRefreshNow()) {
+          throw new SDPAuthError(
+            'Token refresh attempted too rapidly. Please wait a few seconds.'
+          );
+        }
+
+        try {
+          await this.refreshAccessToken();
+          return this.tokenStore.getTokens().accessToken!;
+        } catch (error) {
+          // Don't fall back to client credentials if we have a refresh token
+          console.error('Token refresh failed:', error);
+          throw error;
+        }
+      });
     }
 
     // Check if we can request a new token (rate limit)
@@ -150,12 +169,20 @@ export class AuthManager {
       });
 
       this.tokenStore.recordTokenRequest();
+      this.tokenStore.recordRefreshAttempt();
       this.tokenStore.storeTokens(response.data);
+      console.log('Token refreshed successfully');
     } catch (error) {
+      this.tokenStore.recordRefreshAttempt(); // Record failed attempt too
       // Don't clear tokens on failure - we might still be able to use them
       if (axios.isAxiosError(error)) {
+        const errorMessage = error.response?.data?.error_description || error.response?.data?.error || error.message;
+        console.error('Token refresh error details:', {
+          status: error.response?.status,
+          data: error.response?.data
+        });
         throw new SDPAuthError(
-          `Token refresh failed: ${error.response?.data?.error_description || error.message}`
+          `Token refresh failed: ${errorMessage}`
         );
       }
       throw error;

@@ -83,16 +83,31 @@ export class SDPClient {
           
           switch (status) {
             case 401:
+              // Check if we already tried to refresh for this request
+              const originalRequest: any = error.config;
+              if (originalRequest && originalRequest._retry) {
+                console.error('Authentication failed after retry, not attempting again');
+                throw new SDPAuthError('Authentication failed. Please check your credentials.');
+              }
+              
+              // Mark this request as having attempted refresh
+              if (originalRequest) {
+                originalRequest._retry = true;
+              }
+              
               // Try to refresh token
               try {
+                console.log('Got 401, attempting token refresh...');
                 await this.authManager.forceRefresh();
-                // Retry the original request
-                const originalRequest = error.config;
+                // Retry the original request with new token
                 if (originalRequest) {
+                  const newToken = await this.authManager.getAccessToken();
+                  originalRequest.headers.Authorization = `Bearer ${newToken}`;
                   return this.axiosInstance.request(originalRequest);
                 }
               } catch (refreshError) {
-                throw new SDPAuthError('Authentication failed. Please check your credentials.');
+                console.error('Token refresh failed during 401 handling:', refreshError);
+                throw new SDPAuthError(`Authentication failed: ${refreshError instanceof Error ? refreshError.message : 'Unknown error'}`);
               }
               break;
               

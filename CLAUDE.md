@@ -193,4 +193,25 @@ Example:
 - **Keep** commits focused on single changes
 - **Update** .gitignore for new ignore patterns
 
+## 🗄️ Database Setup (PostgreSQL)
+
+### Docker Configuration
+- **Always** check running containers with `docker ps -a` before assigning ports
+- **Use** non-standard ports to avoid conflicts (e.g., 5433 instead of 5432)
+- **PostgreSQL** is the chosen database for production use
+- **Location**: Database runs in Docker container named `sdp-mcp-postgres`
+
+### Database Purpose
+- OAuth token persistence and management
+- API audit logging and performance tracking
+- Field lookup caching (priorities, categories, statuses)
+- Project/task deduplication and history
+- MCP tool usage analytics
+
+### Connection Details
+- Host: localhost (or container name in Docker network)
+- Port: 5433 (non-standard to avoid conflicts)
+- Database: sdp_mcp
+- See `docs/DATABASE_IMPLEMENTATION_PLAN.md` for full schema
+
 Remember: The goal is to create a robust, maintainable, and well-documented Service Desk Plus Cloud API integration that serves both programmatic use and AI assistant interactions effectively.
