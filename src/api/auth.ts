@@ -24,6 +24,19 @@ export class AuthManager {
   constructor(config: AuthConfig) {
     this.config = config;
     this.tokenStore = TokenStore.getInstance();
+    
+    // Check if we have a refresh token from environment
+    const refreshToken = process.env.SDP_REFRESH_TOKEN;
+    if (refreshToken) {
+      console.log('Using refresh token authentication (full API access)');
+      // Pre-populate the token store with the refresh token
+      this.tokenStore.storeTokens({
+        access_token: '',
+        refresh_token: refreshToken,
+        token_type: 'Bearer',
+        expires_in: 0
+      });
+    }
   }
 
   /**
@@ -44,6 +57,8 @@ export class AuthManager {
       } catch (error) {
         // If refresh fails, try to get a new token
         console.error('Token refresh failed:', error);
+        // Don't fall back to client credentials if we have a refresh token
+        throw error;
       }
     }
 
@@ -77,7 +92,7 @@ export class AuthManager {
         client_id: this.config.clientId,
         client_secret: this.config.clientSecret,
         // Note: client_credentials grant type has limited scope support
-        // For full access, implement authorization_code flow
+        // For full access, use refresh token from Self Client
         scope: 'SDPOnDemand.requests.ALL',
       });
 
