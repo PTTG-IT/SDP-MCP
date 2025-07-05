@@ -193,25 +193,62 @@ Example:
 - **Keep** commits focused on single changes
 - **Update** .gitignore for new ignore patterns
 
-## 🗄️ Database Setup (PostgreSQL)
+## 🗄️ Database Integration (PostgreSQL)
 
 ### Docker Configuration
 - **Always** check running containers with `docker ps -a` before assigning ports
 - **Use** non-standard ports to avoid conflicts (e.g., 5433 instead of 5432)
 - **PostgreSQL** is the chosen database for production use
 - **Location**: Database runs in Docker container named `sdp-mcp-postgres`
+- **Start**: Run `docker-compose up -d` to start the database
 
-### Database Purpose
-- OAuth token persistence and management
-- API audit logging and performance tracking
-- Field lookup caching (priorities, categories, statuses)
-- Project/task deduplication and history
-- MCP tool usage analytics
+### Database Features
+1. **Persistent Token Storage**
+   - OAuth tokens stored in database
+   - Automatic token refresh from database on startup
+   - Rate limiting enforcement across sessions
+
+2. **API Audit Logging**
+   - All API calls logged with request/response data
+   - Performance metrics (duration, status codes)
+   - Error tracking and debugging
+
+3. **Change Tracking**
+   - All MCP tool operations tracked
+   - Before/after values stored for rollback capability
+   - Entity history maintained (requests, projects, tasks, etc.)
+
+4. **MCP Tool Analytics**
+   - Tool usage statistics
+   - Success/failure rates
+   - Execution time tracking
 
 ### Connection Details
-- Host: localhost (or container name in Docker network)
+- Host: localhost 
 - Port: 5433 (non-standard to avoid conflicts)
 - Database: sdp_mcp
-- See `docs/DATABASE_IMPLEMENTATION_PLAN.md` for full schema
+- User: sdpmcpservice
+- Password: *jDE1Bj%IPXKMe%Z
+- Root user: root / 16vOp$BeC!&9SCqv
+
+### Environment Variables
+```bash
+# Database connection
+SDP_DB_HOST=localhost
+SDP_DB_PORT=5433
+SDP_DB_NAME=sdp_mcp
+SDP_DB_USER=sdpmcpservice
+SDP_DB_PASSWORD=your_secure_password_here
+
+# Feature flags
+SDP_USE_DB_TOKENS=true      # Enable persistent token storage
+SDP_USE_AUDIT_LOG=true      # Enable API audit logging
+SDP_USE_CHANGE_TRACKING=true # Enable change tracking
+```
+
+### Testing Database
+- Run `node scripts/test-db.js` to verify database connectivity
+- Check logs with `docker logs sdp-mcp-postgres`
+- Access PostgreSQL: `docker exec -it sdp-mcp-postgres psql -U sdpmcpservice -d sdp_mcp`
 
 Remember: The goal is to create a robust, maintainable, and well-documented Service Desk Plus Cloud API integration that serves both programmatic use and AI assistant interactions effectively.

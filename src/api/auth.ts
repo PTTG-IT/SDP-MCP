@@ -1,6 +1,7 @@
 import axios from 'axios';
 import { SDPAuthError } from '../utils/errors.js';
 import { TokenStore } from './tokenStore.js';
+import { initializeTokenStoreIntegration, getTokenStoreIntegration } from '../db/integration.js';
 
 export interface AuthConfig {
   clientId: string;
@@ -25,6 +26,9 @@ export class AuthManager {
     this.config = config;
     this.tokenStore = TokenStore.getInstance();
     
+    // Initialize database integration asynchronously
+    this.initializeDb();
+    
     // Check if we have a refresh token from environment
     const refreshToken = process.env.SDP_REFRESH_TOKEN;
     if (refreshToken) {
@@ -36,6 +40,18 @@ export class AuthManager {
         token_type: 'Bearer',
         expires_in: 0
       });
+    }
+  }
+  
+  /**
+   * Initialize database integration
+   */
+  private async initializeDb(): Promise<void> {
+    try {
+      await initializeTokenStoreIntegration(this.tokenStore);
+      console.log('Database token integration initialized');
+    } catch (error) {
+      console.error('Failed to initialize database integration:', error);
     }
   }
 
@@ -123,6 +139,12 @@ export class AuthManager {
 
       this.tokenStore.recordTokenRequest();
       this.tokenStore.storeTokens(response.data);
+      
+      // Store in database if available
+      const integration = getTokenStoreIntegration();
+      if (integration) {
+        await integration.storeTokens(response.data);
+      }
     } catch (error) {
       if (axios.isAxiosError(error)) {
         throw new SDPAuthError(
@@ -171,9 +193,27 @@ export class AuthManager {
       this.tokenStore.recordTokenRequest();
       this.tokenStore.recordRefreshAttempt();
       this.tokenStore.storeTokens(response.data);
+      
+      // Store in database if available
+      const integration = getTokenStoreIntegration();
+      if (integration) {
+        await integration.storeTokens(response.data);
+        await integration.recordTokenRequest('refresh', true);
+      }
+      
       console.log('Token refreshed successfully');
     } catch (error) {
       this.tokenStore.recordRefreshAttempt(); // Record failed attempt too
+      
+      // Record failed request in database
+      const integration = getTokenStoreIntegration();
+      if (integration) {
+        const errorMessage = axios.isAxiosError(error) 
+          ? error.response?.data?.error_description || error.response?.data?.error || error.message
+          : error instanceof Error ? error.message : String(error);
+        await integration.recordTokenRequest('refresh', false, errorMessage);
+      }
+      
       // Don't clear tokens on failure - we might still be able to use them
       if (axios.isAxiosError(error)) {
         const errorMessage = error.response?.data?.error_description || error.response?.data?.error || error.message;

@@ -15,30 +15,45 @@ export function createToolHandler(toolName: string, client: SDPClient): ToolHand
       const requestData: any = {
         subject: args.subject,
         description: args.description,
-        requester: {},
-        // Add default required fields
-        mode: { name: "E-Mail" },
-        request_type: { name: "Request" },
-        urgency: { name: "Normal" },
-        level: { name: "Tier 1" },
-        impact: { name: "Affects User" },
-        category: { name: "General" },
-        subcategory: { name: "General" },
-        status: { name: "Open" }
+        // Don't add defaults yet - will be added after field mapping
       };
 
-      if (args.requester_email) {
-        requestData.requester.email_id = args.requester_email;
-      }
-      if (args.requester_name) {
-        requestData.requester.name = args.requester_name;
+      // Only add requester if email or name is provided
+      if (args.requester_email || args.requester_name) {
+        requestData.requester = {};
+        if (args.requester_email) {
+          requestData.requester.email_id = args.requester_email;
+        }
+        if (args.requester_name) {
+          requestData.requester.name = args.requester_name;
+        }
+      } else {
+        // Use a default requester if none provided
+        requestData.requester = {
+          name: "Guest User",
+          email_id: "guest@example.com"
+        };
       }
 
       // Map fields that can be provided as names to IDs
       try {
+        // Set default values first (these can be overridden)
+        requestData.mode = { name: "E-Mail" };
+        requestData.request_type = { name: "Request" };
+        requestData.urgency = { name: "Normal" };
+        requestData.level = { name: "Tier 1" };
+        requestData.status = { name: "Open" };
+        
+        // Try to set reasonable defaults for category
+        requestData.category = { name: "General" };
+        
+        // Map user-provided fields (these override defaults)
         if (args.priority) {
           requestData.priority = await fieldMapper.mapField('priority', args.priority);
+        } else {
+          requestData.priority = { name: "Low" };
         }
+        
         if (args.category) {
           requestData.category = await fieldMapper.mapField('category', args.category);
           // Try to map subcategory if provided
@@ -46,24 +61,27 @@ export function createToolHandler(toolName: string, client: SDPClient): ToolHand
             requestData.subcategory = await fieldMapper.mapSubcategory(args.category, args.subcategory);
           }
         }
+        
         if (args.status) {
           requestData.status = await fieldMapper.mapField('status', args.status);
         }
+        
         if (args.urgency) {
           requestData.urgency = await fieldMapper.mapField('urgency', args.urgency);
         }
-        if (args.impact) {
-          requestData.impact = await fieldMapper.mapField('impact', args.impact);
-        }
+        
         if (args.level) {
           requestData.level = await fieldMapper.mapField('level', args.level);
         }
+        
         if (args.mode) {
           requestData.mode = await fieldMapper.mapField('mode', args.mode);
         }
+        
         if (args.request_type) {
           requestData.request_type = await fieldMapper.mapField('request_type', args.request_type);
         }
+        
         if (args.technician_email) {
           requestData.technician = await fieldMapper.mapTechnicianByEmail(args.technician_email);
         }

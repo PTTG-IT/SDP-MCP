@@ -8,8 +8,10 @@ import { RequestersAPI } from './modules/requesters.js';
 import { TechniciansAPI } from './modules/technicians.js';
 import { ProjectsAPI } from './modules/projects.js';
 import { LookupsAPI } from './modules/lookups.js';
+import { TemplatesAPI } from './modules/templates.js';
 import { SDPError, SDPAuthError, SDPRateLimitError, SDPValidationError } from '../utils/errors.js';
 import { RateLimiter } from '../utils/rateLimit.js';
+import { addAuditInterceptors } from './interceptors.js';
 
 export interface SDPClientConfig {
   clientId: string;
@@ -34,6 +36,7 @@ export class SDPClient {
   public technicians: TechniciansAPI;
   public projects: ProjectsAPI;
   public lookups: LookupsAPI;
+  public templates: TemplatesAPI;
 
   constructor(config: SDPClientConfig) {
     const apiVersion = config.apiVersion || 'v3';
@@ -58,6 +61,12 @@ export class SDPClient {
         'Content-Type': 'application/x-www-form-urlencoded',
       },
     });
+    
+    // Add instance name to axios config for audit logging
+    (this.axiosInstance.defaults as any).instanceName = config.instanceName;
+    
+    // Add audit logging interceptors
+    addAuditInterceptors(this.axiosInstance);
     
     // Request interceptor to add auth token and handle rate limiting
     this.axiosInstance.interceptors.request.use(
@@ -147,6 +156,7 @@ export class SDPClient {
     this.technicians = new TechniciansAPI(this.axiosInstance);
     this.projects = new ProjectsAPI(this.axiosInstance);
     this.lookups = new LookupsAPI(this.axiosInstance);
+    this.templates = new TemplatesAPI(this.axiosInstance);
   }
   
   /**

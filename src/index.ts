@@ -12,6 +12,8 @@ import { tools, toolSchemas } from './mcp/tools.js';
 import { createToolHandler } from './mcp/handlers.js';
 import { SDPError, formatSDPError } from './utils/errors.js';
 import { getClient } from './utils/clientFactory.js';
+import { createWrappedToolHandler } from './mcp/toolWrapper.js';
+import { dbFeatures } from './db/config.js';
 
 // Load environment variables
 dotenv.config();
@@ -47,7 +49,11 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
   const { name, arguments: args } = request.params;
 
   try {
-    const handler = createToolHandler(name, sdpClient);
+    const baseHandler = createToolHandler(name, sdpClient);
+    // Wrap handler with audit logging and change tracking if enabled
+    const handler = (dbFeatures.useAuditLog || dbFeatures.useChangeTracking) 
+      ? createWrappedToolHandler(name, baseHandler)
+      : baseHandler;
     const result = await handler(args);
     
     return {
