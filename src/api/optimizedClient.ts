@@ -72,6 +72,7 @@ export class OptimizedSDPClient extends SDPClient {
     const originalAssets = this.assets;
     const originalProblems = this.problems;
     const originalChanges = this.changes;
+    const originalLookups = this.lookups;
     
     // Create wrapped versions
     this.requests = this.wrapModule(originalRequests, 'requests');
@@ -80,6 +81,7 @@ export class OptimizedSDPClient extends SDPClient {
     this.assets = this.wrapModule(originalAssets, 'assets');
     this.problems = this.wrapModule(originalProblems, 'problems');
     this.changes = this.wrapModule(originalChanges, 'changes');
+    this.lookups = this.wrapModule(originalLookups, 'lookups');
   }
 
   /**

@@ -1,23 +1,28 @@
 import { SDPClient } from '../api/client.js';
 import { SDPError } from '../utils/errors.js';
+import { lookupHandlers } from './handlers/lookups.js';
+import { FieldMapper } from '../utils/fieldMapper.js';
+import { convertDateFields } from '../utils/dateUtils.js';
 
 export type ToolHandler = (args: any) => Promise<any>;
 
 export function createToolHandler(toolName: string, client: SDPClient): ToolHandler {
+  const fieldMapper = new FieldMapper(client.lookups);
+  
   const handlers: Record<string, ToolHandler> = {
     create_request: async (args) => {
       const requestData: any = {
         subject: args.subject,
         description: args.description,
         requester: {},
-        // Add default required fields based on what we learned
+        // Add default required fields
         mode: { name: "E-Mail" },
         request_type: { name: "Request" },
-        urgency: { name: "3 - Have Workaround" },
-        level: { name: "1 - Frontline" },
-        impact: { name: "1 - Affects User" },
-        category: { name: "General" },  // Default category
-        subcategory: { name: "General" },  // Default subcategory
+        urgency: { name: "Normal" },
+        level: { name: "Tier 1" },
+        impact: { name: "Affects User" },
+        category: { name: "General" },
+        subcategory: { name: "General" },
         status: { name: "Open" }
       };
 
@@ -27,38 +32,53 @@ export function createToolHandler(toolName: string, client: SDPClient): ToolHand
       if (args.requester_name) {
         requestData.requester.name = args.requester_name;
       }
-      if (args.category) {
-        requestData.category = { name: args.category };
-        // Reset subcategory when category changes
-        if (args.category.toLowerCase() === "hardware" || args.category === "Hardwre") {
-          requestData.subcategory = { name: "Computer" };
+
+      // Map fields that can be provided as names to IDs
+      try {
+        if (args.priority) {
+          requestData.priority = await fieldMapper.mapField('priority', args.priority);
         }
+        if (args.category) {
+          requestData.category = await fieldMapper.mapField('category', args.category);
+          // Try to map subcategory if provided
+          if (args.subcategory) {
+            requestData.subcategory = await fieldMapper.mapSubcategory(args.category, args.subcategory);
+          }
+        }
+        if (args.status) {
+          requestData.status = await fieldMapper.mapField('status', args.status);
+        }
+        if (args.urgency) {
+          requestData.urgency = await fieldMapper.mapField('urgency', args.urgency);
+        }
+        if (args.impact) {
+          requestData.impact = await fieldMapper.mapField('impact', args.impact);
+        }
+        if (args.level) {
+          requestData.level = await fieldMapper.mapField('level', args.level);
+        }
+        if (args.mode) {
+          requestData.mode = await fieldMapper.mapField('mode', args.mode);
+        }
+        if (args.request_type) {
+          requestData.request_type = await fieldMapper.mapField('request_type', args.request_type);
+        }
+        if (args.technician_email) {
+          requestData.technician = await fieldMapper.mapTechnicianByEmail(args.technician_email);
+        }
+      } catch (error) {
+        // If field mapping fails, throw a helpful error
+        if (error instanceof SDPError) {
+          throw error;
+        }
+        throw new SDPError(`Failed to map fields: ${error}`, 'VALIDATION_ERROR');
       }
-      if (args.subcategory) {
-        requestData.subcategory = { name: args.subcategory };
-      }
-      if (args.priority) {
-        // Map common priority names to your system's values
-        const priorityMap: Record<string, string> = {
-          "low": "3 - Low",
-          "normal": "2 - Normal",
-          "high": "1 - High",
-          "urgent": "1 - High"
-        };
-        requestData.priority = { name: priorityMap[args.priority.toLowerCase()] || args.priority };
-      }
-      if (args.urgency) {
-        requestData.urgency = { name: args.urgency };
-      }
-      if (args.impact) {
-        requestData.impact = { name: args.impact };
-      }
-      if (args.technician_email) {
-        requestData.technician = { email_id: args.technician_email };
-      }
+
+      // Convert date fields if provided
       if (args.due_date) {
-        requestData.due_by_time = args.due_date;
+        requestData.due_by_time = convertDateFields({ due_by_time: args.due_date }, ['due_by_time']).due_by_time;
       }
+      
       if (args.tags) {
         requestData.tags = args.tags;
       }
@@ -726,6 +746,9 @@ export function createToolHandler(toolName: string, client: SDPClient): ToolHand
 
       return summary;
     },
+
+    // Lookup handlers
+    ...lookupHandlers,
   };
 
   const handler = handlers[toolName];

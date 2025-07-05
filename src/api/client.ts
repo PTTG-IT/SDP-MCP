@@ -6,6 +6,7 @@ import { ProblemsAPI } from './modules/problems.js';
 import { ChangesAPI } from './modules/changes.js';
 import { UsersAPI } from './modules/users.js';
 import { ProjectsAPI } from './modules/projects.js';
+import { LookupsAPI } from './modules/lookups.js';
 import { SDPError, SDPAuthError, SDPRateLimitError, SDPValidationError } from '../utils/errors.js';
 import { RateLimiter } from '../utils/rateLimit.js';
 
@@ -30,6 +31,7 @@ export class SDPClient {
   public changes: ChangesAPI;
   public users: UsersAPI;
   public projects: ProjectsAPI;
+  public lookups: LookupsAPI;
 
   constructor(config: SDPClientConfig) {
     const apiVersion = config.apiVersion || 'v3';
@@ -126,6 +128,7 @@ export class SDPClient {
     this.changes = new ChangesAPI(this.axiosInstance);
     this.users = new UsersAPI(this.axiosInstance);
     this.projects = new ProjectsAPI(this.axiosInstance);
+    this.lookups = new LookupsAPI(this.axiosInstance);
   }
   
   /**

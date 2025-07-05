@@ -40,6 +40,16 @@ export interface SDPListResponse<T> {
   tasks?: T[];
   milestones?: T[];
   worklogs?: T[];
+  priorities?: T[];
+  categories?: T[];
+  statuses?: T[];
+  technicians?: T[];
+  request_types?: T[];
+  levels?: T[];
+  modes?: T[];
+  impacts?: T[];
+  urgencies?: T[];
+  subcategories?: T[];
 }
 
 export interface SDPResponse<T> {

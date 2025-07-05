@@ -124,6 +124,31 @@ export const tools: Tool[] = [
     name: "get_project_summary",
     description: "Get a comprehensive summary of a project including tasks, milestones, and time tracking",
   },
+  // Lookup tools
+  {
+    name: "get_priorities",
+    description: "Get all available priority options with their IDs for use in other operations",
+  },
+  {
+    name: "get_categories",
+    description: "Get all available category options with their IDs for use in other operations",
+  },
+  {
+    name: "get_statuses",
+    description: "Get all available status options with their IDs for use in other operations",
+  },
+  {
+    name: "get_technicians",
+    description: "Get all available technicians with their IDs and emails for use in assignments",
+  },
+  {
+    name: "get_request_types",
+    description: "Get all available request type options with their IDs",
+  },
+  {
+    name: "get_subcategories",
+    description: "Get subcategories for a specific category with their IDs",
+  },
 ];
 
 // Schema definitions for each tool
@@ -270,4 +295,14 @@ export const toolSchemas: Record<string, z.ZodSchema> = {
   add_worklog: addWorklogSchema,
   create_milestone: createMilestoneSchema,
   get_project_summary: getProjectSummarySchema,
+
+  // Lookup Tools
+  get_priorities: z.object({}),
+  get_categories: z.object({}),
+  get_statuses: z.object({}),
+  get_technicians: z.object({}),
+  get_request_types: z.object({}),
+  get_subcategories: z.object({
+    category_name: z.string().describe("Name of the parent category"),
+  }),
 };
