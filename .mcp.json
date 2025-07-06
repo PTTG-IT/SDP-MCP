@@ -1,0 +1,18 @@
+{
+  "mcpServers": {
+    "service-desk-plus": {
+      "type": "sse",
+      "url": "http://localhost:3456/sse",
+      "headers": {
+        "X-API-Key": "test-key-123456789"
+      },
+      "env": {
+        "SDP_CLIENT_ID": "1000.U38EZ7R0KMO9DQZHYGKE83FG4OVUEU",
+        "SDP_CLIENT_SECRET": "5752f7060c587171f81b21d58c5b8d0019587ca999",
+        "SDP_REFRESH_TOKEN": "1000.230f6615807edcbeb20dbe397b50e836.635ca41b7d8dd576174f07ea1232ef7d",
+        "SDP_BASE_URL": "https://helpdesk.pttg.com",
+        "SDP_INSTANCE_NAME": "itdesk"
+      }
+    }
+  }
+}

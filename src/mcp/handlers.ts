@@ -1,13 +1,19 @@
 import { SDPClient } from '../api/client.js';
+import { SDPClientV2 } from '../api/clientV2.js';
 import { SDPError } from '../utils/errors.js';
 import { lookupHandlers } from './handlers/lookups.js';
 import { FieldMapper } from '../utils/fieldMapper.js';
 import { convertDateFields } from '../utils/dateUtils.js';
 import { ProjectDeduplicationService } from './projectDeduplication.js';
 
+// Get default technician email from environment
+const getDefaultTechnicianEmail = (): string | undefined => {
+  return process.env.SDP_DEFAULT_TECHNICIAN_EMAIL;
+};
+
 export type ToolHandler = (args: any) => Promise<any>;
 
-export function createToolHandler(toolName: string, client: SDPClient): ToolHandler {
+export function createToolHandler(toolName: string, client: SDPClient | SDPClientV2): ToolHandler {
   const fieldMapper = new FieldMapper(client.lookups);
   
   const handlers: Record<string, ToolHandler> = {
@@ -82,8 +88,10 @@ export function createToolHandler(toolName: string, client: SDPClient): ToolHand
           requestData.request_type = await fieldMapper.mapField('request_type', args.request_type);
         }
         
-        if (args.technician_email) {
-          requestData.technician = await fieldMapper.mapTechnicianByEmail(args.technician_email);
+        // Use provided technician email or default if specified
+        const technicianEmail = args.technician_email || (args.assign_to_default_technician ? getDefaultTechnicianEmail() : undefined);
+        if (technicianEmail) {
+          requestData.technician = await fieldMapper.mapTechnicianByEmail(technicianEmail);
         }
       } catch (error) {
         // If field mapping fails, throw a helpful error
@@ -269,16 +277,18 @@ export function createToolHandler(toolName: string, client: SDPClient): ToolHand
         }
       };
 
-      // If no technician is assigned and one is provided, assign it
-      if (!request.technician && args.technician_email) {
-        updateData.technician = { email_id: args.technician_email };
+      // If no technician is assigned, use provided email or default
+      const technicianEmail = args.technician_email || getDefaultTechnicianEmail();
+      
+      if (!request.technician && technicianEmail) {
+        updateData.technician = { email_id: technicianEmail };
       } else if (!request.technician) {
-        throw new SDPError('Request must have a technician assigned before closing', 'VALIDATION_ERROR');
+        throw new SDPError('Request must have a technician assigned before closing. Set SDP_DEFAULT_TECHNICIAN_EMAIL in environment or provide technician_email parameter.', 'VALIDATION_ERROR');
       }
 
       // Update the request to close it
       const closedRequest = await client.requests.update(args.request_id, updateData);
-      return `Request ${closedRequest.id} closed successfully\nDisplay ID: ${closedRequest.display_id}\nSubject: ${closedRequest.subject}\nStatus: ${closedRequest.status.name}\nClosed by: ${closedRequest.technician?.name || args.technician_email}\nResolution: ${args.closure_comments || "Request closed"}`;
+      return `Request ${closedRequest.id} closed successfully\nDisplay ID: ${closedRequest.display_id}\nSubject: ${closedRequest.subject}\nStatus: ${closedRequest.status.name}\nClosed by: ${closedRequest.technician?.name || technicianEmail}\nResolution: ${args.closure_comments || "Request closed"}`;
     },
 
     add_note_to_request: async (args) => {
@@ -292,10 +302,15 @@ export function createToolHandler(toolName: string, client: SDPClient): ToolHand
     },
 
     assign_request: async (args) => {
-      // Note: This is a simplified implementation
-      // In reality, you might need to look up the technician ID from the email
+      // Use provided email or default
+      const technicianEmail = args.technician_email || getDefaultTechnicianEmail();
+      
+      if (!technicianEmail) {
+        throw new SDPError('Technician email is required. Set SDP_DEFAULT_TECHNICIAN_EMAIL in environment or provide technician_email parameter.', 'VALIDATION_ERROR');
+      }
+      
       const updateData: any = {
-        technician: { email: args.technician_email },
+        technician: { email: technicianEmail },
       };
       
       if (args.group_name) {
@@ -303,7 +318,7 @@ export function createToolHandler(toolName: string, client: SDPClient): ToolHand
       }
 
       const request = await client.requests.update(args.request_id, updateData);
-      return `Request ${request.id} assigned to ${request.technician?.name || args.technician_email}`;
+      return `Request ${request.id} assigned to ${request.technician?.name || technicianEmail}`;
     },
 
     create_asset: async (_args) => {
@@ -328,17 +343,28 @@ export function createToolHandler(toolName: string, client: SDPClient): ToolHand
         if (args.user_id) {
           // Try requester first
           try {
-            user = await client.requesters.get(args.user_id);
+            if ('requesters' in client) {
+              user = await client.requesters.get(args.user_id);
+            } else {
+              user = await client.users.get(args.user_id);
+            }
             userType = 'requester';
           } catch (e) {
             // If not found as requester, try technician
-            user = await client.technicians.get(args.user_id);
+            if ('technicians' in client) {
+              user = await client.technicians.get(args.user_id);
+            } else {
+              // V2 client doesn't have separate technicians API
+              throw new Error('Technician not found');
+            }
             userType = 'technician';
           }
         } else if (args.email) {
           // Search requesters first
           try {
-            const requesterResults = await client.requesters.search(args.email);
+            const requesterResults = 'requesters' in client 
+              ? await client.requesters.search(args.email)
+              : await client.users.list({ search: args.email });
             if (requesterResults.requesters && requesterResults.requesters.length > 0) {
               user = requesterResults.requesters[0];
               userType = 'requester';
@@ -349,10 +375,12 @@ export function createToolHandler(toolName: string, client: SDPClient): ToolHand
           
           // If not found in requesters, search technicians
           if (!user) {
-            const techResults = await client.technicians.search(args.email);
-            if (techResults.technicians && techResults.technicians.length > 0) {
-              user = techResults.technicians[0];
-              userType = 'technician';
+            if ('technicians' in client) {
+              const techResults = await client.technicians.search(args.email);
+              if (techResults.technicians && techResults.technicians.length > 0) {
+                user = techResults.technicians[0];
+                userType = 'technician';
+              }
             }
           }
           
@@ -388,11 +416,13 @@ export function createToolHandler(toolName: string, client: SDPClient): ToolHand
         
         // Search requesters
         try {
-          const requesterResults = await client.requesters.search(args.query, {
-            limit: args.limit || 20,
-          });
+          const requesterResults = 'requesters' in client 
+            ? await client.requesters.search(args.query, {
+                limit: args.limit || 20,
+              })
+            : await client.users.list({ search: args.query, per_page: args.limit || 20 });
           if (requesterResults.requesters) {
-            allUsers.push(...requesterResults.requesters.map(r => ({
+            allUsers.push(...requesterResults.requesters.map((r: any) => ({
               ...r,
               user_type: 'requester',
               email: r.email_id,
@@ -405,16 +435,18 @@ export function createToolHandler(toolName: string, client: SDPClient): ToolHand
         
         // Search technicians
         try {
-          const techResults = await client.technicians.search(args.query, {
-            limit: args.limit || 20,
-          });
+          if ('technicians' in client) {
+            const techResults = await client.technicians.search(args.query, {
+              limit: args.limit || 20,
+            });
           if (techResults.technicians) {
-            allUsers.push(...techResults.technicians.map(t => ({
+            allUsers.push(...techResults.technicians.map((t: any) => ({
               ...t,
               user_type: 'technician',
               email: t.email_id,
             })));
             totalCount += techResults.technicians.length;
+            }
           }
         } catch (e) {
           // Continue even if technicians search fails
@@ -929,3 +961,52 @@ export function createToolHandler(toolName: string, client: SDPClient): ToolHand
 
   return handler;
 }
+
+/**
+ * Create all tool handlers
+ */
+export function createToolHandlers(client: SDPClient): Record<string, ToolHandler> {
+  const toolNames = [
+    'create_request',
+    'update_request',
+    'get_request',
+    'search_requests',
+    'list_requests',
+    'close_request',
+    'add_note_to_request',
+    'assign_request',
+    'create_asset',
+    'update_asset',
+    'search_assets',
+    'get_user',
+    'search_users',
+    'create_problem',
+    'create_change',
+    'create_project',
+    'update_project',
+    'get_project',
+    'list_projects',
+    'create_task',
+    'update_task',
+    'complete_task',
+    'list_project_tasks',
+    'add_worklog',
+    'create_milestone',
+    'get_project_summary',
+    'get_priorities',
+    'get_categories',
+    'get_statuses',
+    'get_technicians',
+    'get_request_types',
+    'get_subcategories'
+  ];
+  
+  const handlers: Record<string, ToolHandler> = {};
+  
+  for (const toolName of toolNames) {
+    handlers[toolName] = createToolHandler(toolName, client);
+  }
+  
+  return handlers;
+}
+

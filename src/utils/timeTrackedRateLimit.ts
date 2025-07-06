@@ -107,6 +107,18 @@ export class TimeTrackedRateLimiter extends EventEmitter {
   }
 
   /**
+   * Simple acquire method for compatibility
+   */
+  async acquire(): Promise<void> {
+    // For simple rate limiting, just check if we can proceed
+    const canProceed = await this.canProcessNext();
+    if (!canProceed) {
+      // Wait a bit before allowing
+      await this.delay(1000);
+    }
+  }
+
+  /**
    * Process queued requests
    */
   private async startProcessing(): Promise<void> {

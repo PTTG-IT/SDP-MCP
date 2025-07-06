@@ -1,98 +1,111 @@
 import axios from 'axios';
-import { SDPAuthError } from '../utils/errors.js';
 import { TokenStore } from './tokenStore.js';
-
-export interface AuthConfig {
-  clientId: string;
-  clientSecret: string;
-  baseUrl: string;
-  instanceName: string;
-  refreshToken?: string; // Optional: for Self Client auth
-  authBaseUrl?: string;  // Optional: data center specific auth URL
-}
+import { SDPConfig } from './types.js';
+import { SDPAuthError } from '../utils/errors.js';
+import { Mutex } from 'async-mutex';
+import { getTokenStoreIntegration } from '../db/integration.js';
+import { RateLimitCoordinator } from './rateLimitCoordinator.js';
 
 export interface TokenResponse {
   access_token: string;
-  token_type: string;
-  expires_in: number;
   refresh_token?: string;
+  expires_in: number;
+  token_type: string;
   scope?: string;
 }
 
+/**
+ * Enhanced Authentication Manager that uses centralized rate limiting
+ * This is a new version that integrates with RateLimitCoordinator
+ */
 export class AuthManagerV2 {
-  private config: AuthConfig;
   private tokenStore: TokenStore;
-  private authMode: 'self-client' | 'client-credentials';
+  private refreshMutex: Mutex;
+  private rateLimitCoordinator: RateLimitCoordinator;
 
-  constructor(config: AuthConfig) {
-    this.config = config;
+  constructor(private config: SDPConfig) {
     this.tokenStore = TokenStore.getInstance();
-    
-    // Determine auth mode based on presence of refresh token
-    this.authMode = config.refreshToken ? 'self-client' : 'client-credentials';
-    
-    if (this.authMode === 'self-client') {
-      console.log('Using Self Client authentication (full API access)');
-      // Store the refresh token for use
-      const tokenData: TokenResponse = {
-        access_token: '',
-        refresh_token: config.refreshToken,
-        token_type: 'Bearer',
-        expires_in: 0
-      };
-      this.tokenStore.storeTokens(tokenData);
-    } else {
-      console.log('Using Client Credentials authentication (limited to requests API)');
-    }
+    this.refreshMutex = new Mutex();
+    this.rateLimitCoordinator = RateLimitCoordinator.getInstance();
   }
 
   /**
-   * Get a valid access token, refreshing if necessary
+   * Get current access token, DO NOT refresh if expired
+   * Token refresh is now handled by the background TokenManager
    */
   async getAccessToken(): Promise<string> {
-    // Check if we have a valid token in the store
-    if (this.tokenStore.isTokenValid()) {
-      return this.tokenStore.getTokens().accessToken!;
+    const { accessToken } = this.tokenStore.getTokens();
+    
+    if (!accessToken) {
+      throw new SDPAuthError('No access token available. Please authenticate first.');
     }
 
-    // Check if we can request a new token (rate limit)
-    if (!this.tokenStore.canRequestToken()) {
-      const waitTime = this.tokenStore.getTimeUntilTokenRequestAllowed();
-      const minutes = Math.ceil(waitTime / 60000);
-      throw new SDPAuthError(
-        `OAuth token request limit reached. Please wait ${minutes} minutes before trying again.`
-      );
-    }
-
-    // Try to refresh or authenticate based on mode
-    if (this.authMode === 'self-client') {
-      const { refreshToken } = this.tokenStore.getTokens();
-      if (refreshToken) {
-        await this.refreshAccessToken();
-        return this.tokenStore.getTokens().accessToken!;
-      } else {
-        throw new SDPAuthError('No refresh token available for Self Client mode');
-      }
-    } else {
-      // Client credentials mode
-      await this.authenticate();
-      return this.tokenStore.getTokens().accessToken!;
-    }
+    // Return token even if expired - let the TokenManager handle refresh
+    return accessToken;
   }
 
   /**
-   * Perform client credentials authentication (limited scope)
+   * Check if token is valid (not expired)
    */
-  private async authenticate(): Promise<void> {
+  isTokenValid(): boolean {
+    const { accessToken, tokenExpiry } = this.tokenStore.getTokens();
+    
+    if (!accessToken || !tokenExpiry) {
+      return false;
+    }
+    
+    return tokenExpiry.getTime() > Date.now();
+  }
+
+  /**
+   * Authenticate using client credentials or refresh token
+   * This should only be called during initial setup
+   */
+  async authenticate(): Promise<void> {
+    // Check if we have a valid token already
+    if (this.isTokenValid()) {
+      console.log('Valid token already exists, skipping authentication');
+      return;
+    }
+
+    // Try to load from database first
+    const integration = getTokenStoreIntegration();
+    if (integration) {
+      const loaded = await integration.loadTokensFromDatabase();
+      if (loaded && this.isTokenValid()) {
+        console.log('Loaded valid token from database');
+        return;
+      }
+    }
+
+    // Check if we have a refresh token
+    const { refreshToken } = this.tokenStore.getTokens();
+    if (refreshToken) {
+      console.log('Attempting to use refresh token');
+      try {
+        await this.refreshAccessToken();
+        return;
+      } catch (error) {
+        console.error('Refresh token failed, falling back to client credentials:', error);
+      }
+    }
+
+    // Use client credentials as last resort
+    await this.authenticateWithClientCredentials();
+  }
+
+  /**
+   * Authenticate using client credentials
+   */
+  private async authenticateWithClientCredentials(): Promise<void> {
     try {
-      const tokenUrl = this.getTokenUrl();
+      const tokenUrl = `https://accounts.zoho.com/oauth/v2/token`;
       
       const params = new URLSearchParams({
-        grant_type: 'client_credentials',
+        grant_type: 'authorization_code',
+        code: this.config.authCode,
         client_id: this.config.clientId,
         client_secret: this.config.clientSecret,
-        // Limited scope for client_credentials
-        scope: 'SDPOnDemand.requests.ALL',
       });
 
       const response = await axios.post<TokenResponse>(tokenUrl, params, {
@@ -101,22 +114,21 @@ export class AuthManagerV2 {
         },
       });
 
-      if (!response.data.access_token) {
-        throw new SDPAuthError('No access token in response. Check if client_credentials is supported.');
+      this.tokenStore.setTokens(
+        response.data.access_token,
+        response.data.refresh_token,
+        response.data.expires_in
+      );
+      
+      // Store in database if available
+      const integration = getTokenStoreIntegration();
+      if (integration) {
+        await integration.storeTokens(response.data);
       }
-
-      this.tokenStore.recordTokenRequest();
-      this.tokenStore.storeTokens(response.data);
     } catch (error) {
       if (axios.isAxiosError(error)) {
-        const errorData = error.response?.data;
-        if (errorData?.error === 'invalid_scope') {
-          throw new SDPAuthError(
-            'Invalid scope for client_credentials. This grant type only supports limited scopes like SDPOnDemand.requests.ALL'
-          );
-        }
         throw new SDPAuthError(
-          `Authentication failed: ${errorData?.error_description || error.message}`
+          `Authentication failed: ${error.response?.data?.error_description || error.message}`
         );
       }
       throw error;
@@ -124,7 +136,8 @@ export class AuthManagerV2 {
   }
 
   /**
-   * Refresh the access token using the refresh token (Self Client mode)
+   * Refresh the access token using the refresh token
+   * This should ONLY be called by the TokenManager
    */
   async refreshAccessToken(): Promise<void> {
     const { refreshToken } = this.tokenStore.getTokens();
@@ -133,81 +146,85 @@ export class AuthManagerV2 {
       throw new SDPAuthError('No refresh token available');
     }
 
-    try {
-      const tokenUrl = this.getTokenUrl();
-      
-      const params = new URLSearchParams({
-        grant_type: 'refresh_token',
-        refresh_token: refreshToken,
-        client_id: this.config.clientId,
-        client_secret: this.config.clientSecret,
-      });
-
-      const response = await axios.post<TokenResponse>(tokenUrl, params, {
-        headers: {
-          'Content-Type': 'application/x-www-form-urlencoded',
-        },
-      });
-
-      if (!response.data.access_token) {
-        throw new SDPAuthError('No access token in refresh response');
+    // Use mutex to prevent concurrent refresh attempts
+    await this.refreshMutex.runExclusive(async () => {
+      // Double-check inside mutex
+      if (this.isTokenValid()) {
+        console.log('Token already refreshed by another process');
+        return;
       }
 
-      this.tokenStore.recordTokenRequest();
-      this.tokenStore.storeTokens(response.data);
-    } catch (error) {
-      if (axios.isAxiosError(error)) {
-        const errorData = error.response?.data;
-        
-        // Don't clear tokens on failure - we might still be able to use them
-        if (errorData?.error === 'invalid_refresh_token') {
-          throw new SDPAuthError(
-            'Refresh token is invalid or expired. Please run setup-self-client.js to generate a new one.'
-          );
-        }
-        
+      // Check rate limit using the coordinator
+      const canRefresh = await this.rateLimitCoordinator.canRefreshToken();
+      if (!canRefresh) {
+        const waitTime = this.rateLimitCoordinator.getTimeUntilNextRefresh();
+        const minutes = Math.ceil(waitTime / 60000);
         throw new SDPAuthError(
-          `Token refresh failed: ${errorData?.error_description || error.message}`
+          `OAuth token refresh not allowed. Rate limit enforces no more than 1 refresh every 3 minutes. ` +
+          `Next refresh allowed in ${minutes} minutes.`
         );
       }
-      throw error;
-    }
+
+      try {
+        const tokenUrl = `https://accounts.zoho.com/oauth/v2/token`;
+        
+        const params = new URLSearchParams({
+          grant_type: 'refresh_token',
+          refresh_token: refreshToken,
+          client_id: this.config.clientId,
+          client_secret: this.config.clientSecret,
+        });
+
+        const response = await axios.post<TokenResponse>(tokenUrl, params, {
+          headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+          },
+        });
+
+        // Update token store
+        this.tokenStore.setTokens(
+          response.data.access_token,
+          response.data.refresh_token || refreshToken,
+          response.data.expires_in
+        );
+        
+        // Store in database if available
+        const integration = getTokenStoreIntegration();
+        if (integration) {
+          await integration.storeTokens(response.data);
+        }
+        
+        // Record successful refresh
+        await this.rateLimitCoordinator.recordTokenRefresh(true);
+        
+        console.log('Token refreshed successfully');
+      } catch (error) {
+        // Record failed refresh
+        const errorMessage = axios.isAxiosError(error) 
+          ? error.response?.data?.error_description || error.response?.data?.error || error.message
+          : error instanceof Error ? error.message : String(error);
+        
+        await this.rateLimitCoordinator.recordTokenRefresh(false, errorMessage);
+        
+        if (axios.isAxiosError(error)) {
+          console.error('Token refresh error details:', {
+            status: error.response?.status,
+            data: error.response?.data
+          });
+          throw new SDPAuthError(
+            `Token refresh failed: ${errorMessage}`
+          );
+        }
+        throw error;
+      }
+    });
   }
 
   /**
-   * Force refresh the token
+   * Force refresh the token (should only be used in emergencies)
    */
   async forceRefresh(): Promise<void> {
-    if (this.authMode === 'self-client') {
-      await this.refreshAccessToken();
-    } else {
-      await this.authenticate();
-    }
-  }
-
-  /**
-   * Get the appropriate token URL based on configuration
-   */
-  private getTokenUrl(): string {
-    if (this.config.authBaseUrl) {
-      return `${this.config.authBaseUrl}/oauth/v2/token`;
-    }
-    
-    // Default to US data center
-    return 'https://accounts.zoho.com/oauth/v2/token';
-  }
-
-  /**
-   * Get current auth mode
-   */
-  getAuthMode(): string {
-    return this.authMode;
-  }
-
-  /**
-   * Check if using limited scope mode
-   */
-  isLimitedScope(): boolean {
-    return this.authMode === 'client-credentials';
+    console.warn('Force refresh requested - this bypasses normal rate limiting');
+    await this.refreshAccessToken();
   }
 }

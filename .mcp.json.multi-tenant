@@ -1,0 +1,17 @@
+{
+  "mcpServers": {
+    "service-desk-plus": {
+      "type": "sse",
+      "url": "http://your-server.com:3456/sse",
+      "headers": {
+        "X-API-Key": "your-api-key-from-server-admin",
+        "X-SDP-Client-ID": "your-sdp-client-id",
+        "X-SDP-Client-Secret": "your-sdp-client-secret",
+        "X-SDP-Refresh-Token": "your-sdp-refresh-token",
+        "X-SDP-Base-URL": "https://your-instance.sdpondemand.manageengine.com",
+        "X-SDP-Instance": "your-instance",
+        "X-SDP-Technician-Email": "your-email@company.com"
+      }
+    }
+  }
+}

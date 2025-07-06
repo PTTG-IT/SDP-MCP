@@ -76,7 +76,7 @@ export class SDPClient {
         
         // Add auth token
         const token = await this.authManager.getAccessToken();
-        config.headers.Authorization = `Bearer ${token}`;
+        config.headers.Authorization = `Zoho-oauthtoken ${token}`;
         
         return config;
       },
@@ -111,7 +111,7 @@ export class SDPClient {
                 // Retry the original request with new token
                 if (originalRequest) {
                   const newToken = await this.authManager.getAccessToken();
-                  originalRequest.headers.Authorization = `Bearer ${newToken}`;
+                  originalRequest.headers.Authorization = `Zoho-oauthtoken ${newToken}`;
                   return this.axiosInstance.request(originalRequest);
                 }
               } catch (refreshError) {
@@ -159,6 +159,15 @@ export class SDPClient {
     this.templates = new TemplatesAPI(this.axiosInstance);
   }
   
+  /**
+   * Initialize the client (for compatibility)
+   */
+  async initialize(): Promise<void> {
+    // For SDPClient v1, initialization happens in constructor
+    // This method exists for API compatibility
+    await this.authManager.authenticate();
+  }
+
   /**
    * Make a custom API request
    */

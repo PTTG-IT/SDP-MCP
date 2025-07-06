@@ -1,0 +1,33 @@
+[Unit]
+Description=Service Desk Plus MCP SSE Server
+Documentation=https://github.com/your-repo/sdp-mcp
+After=network.target postgresql.service
+
+[Service]
+Type=simple
+User=sdpmcp
+Group=sdpmcp
+WorkingDirectory=/opt/sdp-mcp
+Environment="NODE_ENV=production"
+ExecStart=/usr/bin/node /opt/sdp-mcp/dist/indexSSE.js
+Restart=always
+RestartSec=10
+
+# Security
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/opt/sdp-mcp/logs
+
+# Resource limits
+LimitNOFILE=65536
+MemoryLimit=1G
+
+# Logging
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=sdp-mcp-sse
+
+[Install]
+WantedBy=multi-user.target

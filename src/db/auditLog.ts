@@ -228,3 +228,61 @@ export class AuditLogger {
 
 // Export singleton instance
 export const auditLogger = new AuditLogger();
+
+/**
+ * Add audit interceptors to axios instance
+ */
+export function addAuditInterceptors(axiosInstance: any): void {
+  // Request interceptor
+  axiosInstance.interceptors.request.use(
+    (config: any) => {
+      // Add request timestamp
+      config.metadata = { startTime: Date.now() };
+      return config;
+    },
+    (error: any) => {
+      return Promise.reject(error);
+    }
+  );
+
+  // Response interceptor
+  axiosInstance.interceptors.response.use(
+    async (response: any) => {
+      // Calculate duration
+      const duration = Date.now() - response.config.metadata?.startTime || 0;
+      
+      // Log successful request
+      if (process.env.SDP_USE_AUDIT_LOG === 'true') {
+        await auditLogger.logApiCall({
+          endpoint: response.config.url,
+          method: response.config.method?.toUpperCase() || 'GET',
+          requestData: response.config.data,
+          responseData: response.data,
+          statusCode: response.status,
+          durationMs: duration
+        }).catch(err => console.error('Audit log failed:', err));
+      }
+      
+      return response;
+    },
+    async (error: any) => {
+      // Calculate duration
+      const duration = Date.now() - error.config?.metadata?.startTime || 0;
+      
+      // Log failed request
+      if (process.env.SDP_USE_AUDIT_LOG === 'true' && error.config) {
+        await auditLogger.logApiCall({
+          endpoint: error.config.url,
+          method: error.config.method?.toUpperCase() || 'GET',
+          requestData: error.config.data,
+          responseData: error.response?.data,
+          statusCode: error.response?.status,
+          errorMessage: error.message,
+          durationMs: duration
+        }).catch(err => console.error('Audit log failed:', err));
+      }
+      
+      return Promise.reject(error);
+    }
+  );
+}

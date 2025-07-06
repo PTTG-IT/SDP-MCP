@@ -2,6 +2,19 @@
 
 A comprehensive integration solution for ManageEngine Service Desk Plus Cloud API that provides both a programmatic API client and an MCP (Model Context Protocol) server for AI assistants like Claude.
 
+## 🚀 NEW: User Registry for Multi-User Access
+
+The latest version includes an **API Key Mapping Service** that provides simple multi-user access:
+
+- 🔑 **Simple API Keys** - Users only need one `usr_*` key in their config
+- 🔐 **Secure Credential Storage** - SDP credentials encrypted with AES-256-GCM
+- 👥 **Centralized User Management** - Admin CLI for managing all users
+- 📊 **Usage Tracking** - Monitor who uses the system and how often
+- 🚀 **Zero Client Maintenance** - Update server without touching client configs
+- 🌐 **SSE Transport** - Production-ready remote access via HTTP/SSE
+
+[**→ User Registry Guide**](docs/USER_REGISTRY_GUIDE.md) | [**→ SSE Setup Guide**](docs/SSE_SETUP_GUIDE.md) | [**→ Quick Start**](docs/QUICK_START.md)
+
 ## 📊 MCP Tool Status (32 Total)
 
 | Status | Count | Description |

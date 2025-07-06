@@ -1,4 +1,5 @@
 import { SDPClient } from '../api/client.js';
+import { SDPClientV2 } from '../api/clientV2.js';
 
 interface Project {
   id: string;
@@ -22,7 +23,7 @@ interface DuplicateCheckResult {
  * Check for duplicate projects before creation
  */
 export class ProjectDeduplicationService {
-  constructor(private client: SDPClient) {}
+  constructor(private client: SDPClient | SDPClientV2) {}
 
   /**
    * Check if a project with similar title already exists

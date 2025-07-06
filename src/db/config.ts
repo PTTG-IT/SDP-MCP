@@ -120,3 +120,10 @@ export async function transaction<T>(
     client.release();
   }
 }
+
+/**
+ * Alias for getPool for backward compatibility
+ */
+export function getDbPool(): Pool | null {
+  return pool;
+}

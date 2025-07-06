@@ -1,5 +1,13 @@
 // Common types used across the API
 
+export interface SDPConfig {
+  clientId: string;
+  clientSecret: string;
+  baseUrl?: string;
+  instanceName: string;
+  authCode: string;
+}
+
 export interface PaginationParams {
   page?: number;
   per_page?: number;

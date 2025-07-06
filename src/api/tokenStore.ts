@@ -82,6 +82,18 @@ export class TokenStore {
   }
 
   /**
+   * Set tokens directly (for compatibility)
+   */
+  setTokens(accessToken: string, refreshToken?: string, expiresIn?: number): void {
+    this.accessToken = accessToken;
+    this.refreshToken = refreshToken || this.refreshToken;
+    
+    if (expiresIn) {
+      this.tokenExpiry = new Date(Date.now() + expiresIn * 1000);
+    }
+  }
+
+  /**
    * Check if the current token is still valid
    */
   isTokenValid(): boolean {

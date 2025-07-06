@@ -16,6 +16,35 @@ export class TokenStoreIntegration {
   }
   
   /**
+   * Get the database store instance
+   */
+  getDbStore(): DatabaseTokenStore | null {
+    return this.dbStore;
+  }
+
+  /**
+   * Load tokens from database
+   */
+  async loadTokensFromDatabase(): Promise<boolean> {
+    if (!this.dbStore) return false;
+    
+    try {
+      const token = await this.dbStore.getActiveToken();
+      if (token) {
+        this.memoryStore.setTokens(
+          token.accessToken,
+          token.refreshToken || undefined,
+          Math.floor((token.tokenExpiry.getTime() - Date.now()) / 1000)
+        );
+        return true;
+      }
+    } catch (error) {
+      console.error('Failed to load tokens from database:', error);
+    }
+    return false;
+  }
+
+  /**
    * Initialize database integration
    */
   async initialize(): Promise<void> {

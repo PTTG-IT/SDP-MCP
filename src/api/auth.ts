@@ -118,7 +118,7 @@ export class AuthManager {
    * For production use, consider implementing the full OAuth 2.0 
    * authorization code flow with user consent.
    */
-  private async authenticate(): Promise<void> {
+  async authenticate(): Promise<void> {
     try {
       const tokenUrl = `https://accounts.zoho.com/oauth/v2/token`;
       
