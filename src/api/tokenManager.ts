@@ -5,7 +5,8 @@ import { RateLimitCoordinator } from './rateLimitCoordinator.js';
 import { CircuitBreaker } from './circuitBreaker.js';
 import { TokenValidator } from './tokenValidator.js';
 import { SDPAuthError } from '../utils/errors.js';
-// import { getTokenStoreIntegration } from '../db/integration.js';
+import { SecureTokenService } from '../services/secureTokenService.js';
+import { getDbPool } from '../db/config.js';
 import { SDPConfig } from './types.js';
 
 export interface TokenManagerOptions {
@@ -26,17 +27,20 @@ export class TokenManager {
   private rateLimitCoordinator: RateLimitCoordinator;
   private tokenValidator: TokenValidator;
   private circuitBreaker: CircuitBreaker;
+  private secureTokenService: SecureTokenService | null = null;
   private intervalId: NodeJS.Timeout | null = null;
   private isRefreshing: boolean = false;
   private options: Required<TokenManagerOptions>;
-  // private config: SDPConfig;
+  private config: SDPConfig;
   
   private constructor(authManager: AuthManager | AuthManagerV2, config: SDPConfig, options?: TokenManagerOptions) {
     this.authManager = authManager;
-    // this.config = config;
+    this.config = config;
     this.tokenStore = TokenStore.getInstance();
     this.rateLimitCoordinator = RateLimitCoordinator.getInstance();
     this.tokenValidator = new TokenValidator(config);
+    
+    // Note: Secure token service will be initialized in start() method
     
     this.options = {
       checkInterval: options?.checkInterval ?? 60000, // Check every minute
@@ -51,6 +55,30 @@ export class TokenManager {
       resetTimeout: 5 * 60 * 1000, // 5 minutes
       successThreshold: 1
     });
+  }
+
+  /**
+   * Initialize secure token service if database is available
+   */
+  private async initializeSecureTokenService(): Promise<void> {
+    try {
+      if (process.env.SDP_USE_DB_TOKENS === 'true') {
+        const pool = await getDbPool();
+        if (pool) {
+          this.secureTokenService = new SecureTokenService(
+            pool,
+            this.config.baseUrl,
+            this.config.instanceName
+          );
+          
+          // Initialize schema if needed
+          await SecureTokenService.initializeSchema(pool);
+          console.log('✅ Secure token service initialized');
+        }
+      }
+    } catch (error) {
+      console.warn('⚠️  Could not initialize secure token service:', error instanceof Error ? error.message : 'Unknown error');
+    }
   }
   
   /**
@@ -68,6 +96,9 @@ export class TokenManager {
    */
   async start(): Promise<void> {
     console.log('Starting background token manager');
+    
+    // Initialize secure token service
+    await this.initializeSecureTokenService();
     
     // Initialize rate limit coordinator from database
     await this.rateLimitCoordinator.initializeFromDatabase();
@@ -171,6 +202,12 @@ export class TokenManager {
    * Perform the actual token refresh
    */
   private async performTokenRefresh(): Promise<void> {
+    // Use secure token service if available
+    if (this.secureTokenService && this.config.clientId && this.config.clientSecret) {
+      return this.performSecureTokenRefresh();
+    }
+    
+    // Fallback to legacy token refresh
     const { refreshToken } = this.tokenStore.getTokens();
     
     if (!refreshToken) {
@@ -217,6 +254,45 @@ export class TokenManager {
     
     // All retries failed
     throw lastError || new SDPAuthError('Token refresh failed after all retries');
+  }
+
+  /**
+   * Perform secure token refresh using database storage
+   */
+  private async performSecureTokenRefresh(): Promise<void> {
+    if (!this.secureTokenService || !this.config.clientId || !this.config.clientSecret) {
+      throw new SDPAuthError('Secure token service not available');
+    }
+
+    try {
+      // Get access token - this will automatically refresh if needed
+      const tokenData = await this.secureTokenService.getAccessToken(
+        this.config.clientId,
+        this.config.clientSecret
+      );
+
+      // Update the in-memory token store for backward compatibility
+      const expiresIn = Math.floor((tokenData.expiresAt.getTime() - Date.now()) / 1000);
+      this.tokenStore.setTokens(
+        tokenData.accessToken,
+        '', // Refresh token is managed securely in database
+        expiresIn
+      );
+
+      // Record success with rate limit coordinator
+      await this.rateLimitCoordinator.recordTokenRefresh(true);
+      
+      console.log('✅ Secure token refresh successful');
+      
+    } catch (error) {
+      // Record failure
+      await this.rateLimitCoordinator.recordTokenRefresh(false);
+      
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      console.error('❌ Secure token refresh failed:', errorMessage);
+      
+      throw error;
+    }
   }
   
   /**

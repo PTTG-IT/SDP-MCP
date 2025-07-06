@@ -2,11 +2,20 @@ import { describe, it, expect, jest, beforeAll, afterAll, beforeEach } from '@je
 import axios, { AxiosInstance } from 'axios';
 import { EventSource } from 'eventsource';
 import { createSSEServer } from '../src/transport/sse-server';
+import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 
 // Mock MCP Server
-const mockServer = {
-  connect: jest.fn().mockResolvedValue(undefined),
-};
+const mockServer = new Server(
+  {
+    name: 'test-server',
+    version: '1.0.0',
+  },
+  {
+    capabilities: {
+      tools: {},
+    },
+  }
+);
 
 describe('SSE Server', () => {
   let sseServer: any;
@@ -16,26 +25,31 @@ describe('SSE Server', () => {
   
   beforeAll(async () => {
     // Create SSE server with test configuration
-    sseServer = await createSSEServer({
-      port: testPort,
-      host: '127.0.0.1',
-      apiKeys: [testApiKey],
-      allowedIps: ['*'],
-      enableCors: true,
-      corsOrigin: '*',
-      productionConfig: {
-        maxConnectionsPerIP: 5,
-        maxTotalConnections: 100,
-        sessionTimeout: 30000, // 30 seconds for tests
-        keepAliveInterval: 5000, // 5 seconds for tests
-        rateLimitPerConnection: {
-          windowMs: 60000,
-          maxRequests: 10, // Lower for tests
+    sseServer = await createSSEServer(
+      mockServer,
+      {
+        port: testPort,
+        host: '127.0.0.1',
+        apiKeys: [testApiKey],
+        allowedIps: ['*'],
+        enableCors: true,
+        corsOrigin: '*',
+        productionConfig: {
+          maxConnectionsPerIP: 5,
+          maxTotalConnections: 100,
+          sessionTimeout: 30000, // 30 seconds for tests
+          keepAliveInterval: 5000, // 5 seconds for tests
+          rateLimitPerConnection: {
+            windowMs: 60000,
+            maxRequests: 10, // Lower for tests
+          },
         },
+        onConnection: jest.fn(),
+        onDisconnection: jest.fn(),
       },
-      onConnection: jest.fn(),
-      onDisconnection: jest.fn(),
-    });
+      null, // No rate limit system for tests
+      null  // No user registry for tests
+    );
     
     // Create axios client
     client = axios.create({
@@ -110,7 +124,7 @@ describe('SSE Server', () => {
       
       eventSource.onerror = (error) => {
         eventSource.close();
-        done(error);
+        done(new Error(error ? String(error) : 'SSE connection failed'));
       };
     });
     

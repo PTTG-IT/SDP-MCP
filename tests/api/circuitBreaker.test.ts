@@ -186,27 +186,38 @@ describe('CircuitBreaker', () => {
   describe('Error Threshold Percentage', () => {
     it('should open based on error percentage when configured', async () => {
       const percentBreaker = new CircuitBreaker('percent-breaker', {
-        failureThreshold: 10, // High absolute threshold
+        failureThreshold: 10, // High absolute threshold to avoid interference
         resetTimeout: 1000,
         successThreshold: 1,
         volumeThreshold: 5,
         errorThresholdPercentage: 50
       });
 
-      // Make 5 requests with 3 failures (60% error rate)
+      // Make exactly 5 requests with 3 failures (60% error rate)
+      // All failures first, then successes to ensure percentage check happens
+      const results = [];
       for (let i = 0; i < 5; i++) {
         try {
-          await percentBreaker.execute(async () => {
-            if (i < 3) throw new Error('fail');
-            return 'success';
+          const result = await percentBreaker.execute(async () => {
+            if (i < 3) throw new Error(`fail-${i}`);
+            return `success-${i}`;
           });
+          results.push(`success: ${result}`);
         } catch (e) {
-          // Expected
+          results.push(`error: ${e.message}`);
         }
       }
 
       // Should be open due to 60% error rate > 50% threshold
-      expect(percentBreaker.getState().state).toBe(CircuitState.OPEN);
+      // The circuit should open after processing the requests
+      const state = percentBreaker.getState();
+      
+      // Verify we had the right mix of failures/successes
+      expect(state.totalRequests).toBe(5);
+      expect(state.errorCount).toBe(3);
+      
+      // Circuit should be open due to error percentage exceeding threshold
+      expect(state.state).toBe(CircuitState.OPEN);
     });
   });
 });

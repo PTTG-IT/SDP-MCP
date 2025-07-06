@@ -5,6 +5,7 @@ describe('RateLimitCoordinator', () => {
   let coordinator: RateLimitCoordinator;
 
   beforeEach(() => {
+    jest.useFakeTimers();
     // Reset singleton instance
     (RateLimitCoordinator as any).instance = null;
     coordinator = RateLimitCoordinator.getInstance();
@@ -12,6 +13,7 @@ describe('RateLimitCoordinator', () => {
 
   afterEach(() => {
     jest.clearAllTimers();
+    jest.useRealTimers();
   });
 
   describe('Token Refresh Rate Limiting', () => {

@@ -113,18 +113,32 @@ describe('TokenValidator', () => {
     });
 
     it('should detect revoked token via API', async () => {
-      tokenStore.setTokens('revoked-token', 'refresh-token', 3600);
+      // Use a unique token to avoid cache conflicts
+      const uniqueToken = `revoked-token-${Date.now()}`;
+      tokenStore.setTokens(uniqueToken, 'refresh-token', 3600);
 
-      // Mock 401 response
-      mockedAxios.get.mockRejectedValueOnce({
-        isAxiosError: true,
-        response: { status: 401 }
-      });
+      // Clear validator cache to force API call
+      validator.clearCache();
+
+      // Clear any previous mocks and set up rejection
+      mockedAxios.get.mockClear();
+      
+      // Create a proper AxiosError mock
+      const axiosError = new Error('Request failed with status code 401') as any;
+      axiosError.isAxiosError = true;
+      axiosError.response = { status: 401 };
+      
+      mockedAxios.get.mockRejectedValueOnce(axiosError);
 
       const result = await validator.validateToken(false);
       
+      console.log('Mock call count:', mockedAxios.get.mock.calls.length);
+      console.log('Mock call args:', mockedAxios.get.mock.calls);
+      console.log('Validation result:', result);
+      
       expect(result.isValid).toBe(false);
       expect(result.reason).toBe('Token validation failed with API');
+      expect(mockedAxios.get).toHaveBeenCalledTimes(1);
     });
 
     it('should cache validation results', async () => {

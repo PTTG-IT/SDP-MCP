@@ -41,7 +41,7 @@ export class SecureTokenService {
   constructor(
     private pool: Pool,
     private baseUrl: string = 'https://accounts.zoho.com',
-    private instanceName?: string
+    private instanceName?: string // Used for future instance-specific token management
   ) {}
 
   /**
@@ -96,8 +96,7 @@ export class SecureTokenService {
       const canCreateToken = await this.checkRateLimit(clientIdHash);
       if (!canCreateToken) {
         throw new SDPAuthError(
-          'Rate limit exceeded. Zoho allows maximum 10 tokens per 10 minutes. Please wait before creating new tokens.',
-          'RATE_LIMIT_EXCEEDED'
+          'Rate limit exceeded. Zoho allows maximum 10 tokens per 10 minutes. Please wait before creating new tokens.'
         );
       }
 
@@ -105,8 +104,7 @@ export class SecureTokenService {
       const refreshTokenData = await this.getActiveRefreshToken(clientIdHash);
       if (!refreshTokenData) {
         throw new SDPAuthError(
-          'No active refresh token found. Re-authorization required.',
-          'NO_REFRESH_TOKEN'
+          'No active refresh token found. Re-authorization required.'
         );
       }
 
@@ -114,8 +112,7 @@ export class SecureTokenService {
       if (refreshTokenData.usageCount >= refreshTokenData.maxUsageCount) {
         await this.revokeRefreshToken(clientIdHash, refreshTokenData.refreshToken, 'usage_limit_exceeded');
         throw new SDPAuthError(
-          'Refresh token usage limit exceeded. Re-authorization required.',
-          'REFRESH_TOKEN_EXHAUSTED'
+          'Refresh token usage limit exceeded. Re-authorization required.'
         );
       }
 
@@ -167,7 +164,7 @@ export class SecureTokenService {
    */
   async storeInitialTokens(
     clientId: string, 
-    clientSecret: string, 
+    clientSecret: string, // Reserved for future validation use
     tokenResponse: TokenRefreshResponse
   ): Promise<{ accessToken: TokenData; refreshToken?: RefreshTokenData }> {
     const clientIdHash = hashApiKey(clientId);
