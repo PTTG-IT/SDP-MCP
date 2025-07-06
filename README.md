@@ -2,18 +2,18 @@
 
 A comprehensive integration solution for ManageEngine Service Desk Plus Cloud API that provides both a programmatic API client and an MCP (Model Context Protocol) server for AI assistants like Claude.
 
-## 🚀 NEW: User Registry for Multi-User Access
+## 🚀 NEW: Self-Client Authentication Implementation
 
-The latest version includes an **API Key Mapping Service** that provides simple multi-user access:
+We're implementing a streamlined authentication model where remote users only need their Zoho Client ID and Secret:
 
-- 🔑 **Simple API Keys** - Users only need one `usr_*` key in their config
-- 🔐 **Secure Credential Storage** - SDP credentials encrypted with AES-256-GCM
-- 👥 **Centralized User Management** - Admin CLI for managing all users
-- 📊 **Usage Tracking** - Monitor who uses the system and how often
-- 🚀 **Zero Client Maintenance** - Update server without touching client configs
-- 🌐 **SSE Transport** - Production-ready remote access via HTTP/SSE
+- 🔑 **Simple Configuration** - Users only provide Client ID and Secret in `.mcp.json`
+- 🔐 **Automatic Token Management** - Server handles all OAuth token lifecycle
+- 💾 **Persistent Token Storage** - Refresh tokens encrypted in PostgreSQL database
+- 🔄 **Smart Token Refresh** - Automatic refresh with rate limit awareness
+- 🛡️ **Circuit Breaker Protection** - Graceful handling of API failures
+- 📊 **Comprehensive Monitoring** - Track all OAuth operations and errors
 
-[**→ User Registry Guide**](docs/USER_REGISTRY_GUIDE.md) | [**→ SSE Setup Guide**](docs/SSE_SETUP_GUIDE.md) | [**→ Quick Start**](docs/QUICK_START.md)
+[**→ Self-Client Auth Plan**](docs/SELF_CLIENT_AUTHENTICATION_PLAN.md) | [**→ User Registry Guide**](docs/USER_REGISTRY_GUIDE.md) | [**→ SSE Setup Guide**](docs/SSE_SETUP_GUIDE.md) | [**→ Quick Start**](docs/QUICK_START.md)
 
 ## 📊 MCP Tool Status (32 Total)
 
@@ -283,6 +283,7 @@ npm run lint
 - [MCP Tools](docs/MCP_TOOLS.md) - Available MCP tools and usage
 - [OAuth Setup Guide](docs/OAUTH_SETUP_COMPLETE_GUIDE.md) - Complete OAuth setup instructions
 - [OAuth Quick Reference](docs/OAUTH_QUICK_REFERENCE.md) - Quick OAuth troubleshooting
+- [Self-Client Authentication Plan](docs/SELF_CLIENT_AUTHENTICATION_PLAN.md) - Implementation roadmap
 - [Troubleshooting](TROUBLESHOOTING.md) - Common issues and solutions
 - [Security](SECURITY.md) - Security best practices
 - [Contributing](CONTRIBUTING.md) - How to contribute
