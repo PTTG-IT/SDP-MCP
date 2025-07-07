@@ -1,9 +1,12 @@
+#!/usr/bin/env node
+
 import dotenv from 'dotenv';
-import { createServer } from './server/index.js';
+import { createSDPMCPServer } from './server/index.js';
 import { logger } from './monitoring/logging.js';
 import { validateEnvironment } from './utils/config.js';
 import { connectDatabase } from './database/connection.js';
 import { connectRedis } from './utils/redis.js';
+import { runMigrations } from './database/migrations.js';
 
 // Load environment variables
 dotenv.config();
@@ -21,13 +24,27 @@ async function main(): Promise<void> {
     logger.info('Connecting to PostgreSQL...');
     await connectDatabase(config.database);
     
+    // Run database migrations
+    logger.info('Running database migrations...');
+    await runMigrations();
+    
     // Connect to Redis
     logger.info('Connecting to Redis...');
     await connectRedis(config.redis);
     
     // Create and start the MCP server
     logger.info('Starting MCP server...');
-    const server = await createServer(config);
+    const server = createSDPMCPServer({
+      port: config.server.port || 3000,
+      path: config.server.path || '/mcp',
+      cors: config.server.cors,
+      maxConnections: config.server.maxConnections || 100,
+      heartbeatInterval: config.server.heartbeatInterval || 30000,
+    });
+    
+    // Start server with specified transport
+    const transport = config.server.transport as 'stdio' | 'sse' || 'sse';
+    await server.start(transport);
     
     // Setup graceful shutdown
     const shutdown = async (signal: string): Promise<void> => {

@@ -1,0 +1,10 @@
+{
+  "jsonrpc": "2.0",
+  "method": "tools/call",
+  "params": {
+    "name": "check_auth_status",
+    "arguments": {}
+  },
+  "id": 1
+}
+EOF < /dev/null
