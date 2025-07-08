@@ -328,6 +328,40 @@ const { SDPAPIClientV2 } = require('./sdp-api-client-v2.cjs');
 
 ## 🧪 Testing & Reliability
 
+### Mock API Server
+A mock Service Desk Plus API server is available for testing without affecting real data:
+
+**Starting Mock Server**:
+```bash
+# Start both mock API and SSE server
+./start-mock-server.sh
+
+# Or start mock API only
+npm run mock:api
+```
+
+**Mock API Features**:
+- Runs on port 3457 (configurable via MOCK_SDP_PORT)
+- Mimics exact error responses from real API
+- Enforces same business rules (can't update closed tickets)
+- All mock data has `is_mock: true` identifier
+- Includes pre-created test tickets
+
+**Using Mock API**:
+```bash
+# Set environment variable
+export SDP_USE_MOCK_API=true
+export SDP_BASE_URL=http://localhost:3457
+
+# Start SSE server (will use mock API)
+./start-sse-server.sh
+```
+
+**Mock Endpoints**:
+- Same as real API: `/app/itdesk/api/v3/*`
+- Returns mock tickets with IDs like `MOCK-216826000006430001`
+- Maintains state during session (creates/updates persist)
+
 ### Test Requirements
 - **Create** Jest unit tests for all new API modules
 - **Place** tests in `/tests` mirroring the source structure

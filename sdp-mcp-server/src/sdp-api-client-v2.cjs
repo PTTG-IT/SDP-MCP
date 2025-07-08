@@ -20,9 +20,16 @@ class SDPAPIClientV2 {
     this.metadata = new SDPMetadataClient(config);
     
     // Create axios instance
-    const baseURL = this.customDomain 
-      ? `${this.customDomain}/app/${this.instanceName}/api/v3`
-      : `https://sdpondemand.manageengine.com/app/${this.portalName}/api/v3`;
+    // Check if we should use mock API for testing
+    const baseURL = process.env.SDP_USE_MOCK_API === 'true'
+      ? `${process.env.SDP_BASE_URL || 'http://localhost:3457'}/app/${this.instanceName}/api/v3`
+      : this.customDomain 
+        ? `${this.customDomain}/app/${this.instanceName}/api/v3`
+        : `https://sdpondemand.manageengine.com/app/${this.portalName}/api/v3`;
+    
+    if (process.env.SDP_USE_MOCK_API === 'true') {
+      console.error('🧪 Using MOCK Service Desk Plus API:', baseURL);
+    }
     
     this.client = axios.create({
       baseURL,
@@ -48,7 +55,14 @@ class SDPAPIClientV2 {
     
     // Response interceptor
     this.client.interceptors.response.use(
-      (response) => response,
+      (response) => {
+        // Some responses have response_status array instead of object
+        if (Array.isArray(response.data?.response_status)) {
+          // This is actually a successful response with data
+          return response;
+        }
+        return response;
+      },
       async (error) => {
         if (error.response?.status === 401) {
           await this.oauth.refreshAccessToken();
@@ -249,12 +263,26 @@ class SDPAPIClientV2 {
     if (updates.description) request.description = updates.description;
     
     if (updates.status) {
-      const statusId = this.metadata.getStatusId(updates.status);
-      if (statusId && statusId !== updates.status) {
-        request.status = { id: statusId };
+      // For statuses, always use name format since we don't have IDs
+      const statusName = this.metadata.getStatusId(updates.status);
+      if (statusName) {
+        request.status = { name: statusName };
       } else {
-        console.error(`Warning: Could not find status ID for "${updates.status}"`);
-        request.status = { name: updates.status };
+        // Try to map common status names
+        const statusMap = {
+          'pending': 'On Hold',
+          'onhold': 'On Hold',
+          'on hold': 'On Hold',
+          'inprogress': 'In Progress',
+          'in progress': 'In Progress',
+          'resolved': 'Resolved',
+          'closed': 'Closed',
+          'cancelled': 'Cancelled',
+          'open': 'Open'
+        };
+        const mappedStatus = statusMap[updates.status.toLowerCase()] || updates.status;
+        request.status = { name: mappedStatus };
+        console.error(`Using status name: "${mappedStatus}"`);
       }
     }
     
@@ -319,23 +347,14 @@ class SDPAPIClientV2 {
     
     const { closure_comments, closure_code = 'Resolved' } = closeData;
     
-    // Get closed status ID
-    const closedStatusId = this.metadata.getStatusId('closed');
-    
     const request = {
       closure_info: {
         closure_code: { name: closure_code },
         closure_comments: closure_comments || 'Request closed'
-      }
+      },
+      // Use the name format for status
+      status: { name: 'Closed' }
     };
-    
-    // Only add status if we have a valid ID
-    if (closedStatusId && closedStatusId !== 'closed') {
-      request.status = { id: closedStatusId };
-    } else {
-      // Try common closed status names
-      request.status = { name: 'Closed' };
-    }
     
     const params = {
       input_data: JSON.stringify({ request })

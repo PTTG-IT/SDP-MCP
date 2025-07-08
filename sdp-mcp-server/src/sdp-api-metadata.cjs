@@ -15,9 +15,12 @@ class SDPMetadataClient {
     
     this.oauth = new SDPOAuthClient(config);
     
-    const baseURL = this.customDomain 
-      ? `${this.customDomain}/app/${this.instanceName}/api/v3`
-      : `https://sdpondemand.manageengine.com/app/${this.portalName}/api/v3`;
+    // Check if we should use mock API
+    const baseURL = process.env.SDP_USE_MOCK_API === 'true'
+      ? `${process.env.SDP_BASE_URL || 'http://localhost:3457'}/app/${this.instanceName}/api/v3`
+      : this.customDomain 
+        ? `${this.customDomain}/app/${this.instanceName}/api/v3`
+        : `https://sdpondemand.manageengine.com/app/${this.portalName}/api/v3`;
     
     this.client = axios.create({
       baseURL,
@@ -101,21 +104,21 @@ class SDPMetadataClient {
     if (this.cache.statuses) return this.cache.statuses;
     
     // Since the statuses endpoint returns 404, use hardcoded common statuses
-    // These are typical status names used in Service Desk Plus
+    // Note: These don't have real IDs - we'll use names instead
     this.cache.statuses = [
-      { id: 'open', name: 'Open' },
-      { id: 'onhold', name: 'On Hold' },
-      { id: 'inprogress', name: 'In Progress' },
-      { id: 'resolved', name: 'Resolved' },
-      { id: 'closed', name: 'Closed' },
-      { id: 'cancelled', name: 'Cancelled' }
+      { id: null, name: 'Open' },
+      { id: null, name: 'On Hold' },
+      { id: null, name: 'In Progress' },
+      { id: null, name: 'Resolved' },
+      { id: null, name: 'Closed' },
+      { id: null, name: 'Cancelled' }
     ];
     
-    // Create mapping
+    // Create mapping - map to names since we don't have IDs
     const statusMap = {};
     this.cache.statuses.forEach(s => {
-      statusMap[s.name.toLowerCase()] = s.id;
-      statusMap[s.id] = s.name;
+      statusMap[s.name.toLowerCase()] = s.name;  // Map to name, not ID
+      statusMap[s.name.toLowerCase().replace(/\s+/g, '')] = s.name; // Handle no spaces
     });
     this.cache.statusMap = statusMap;
     
@@ -220,8 +223,9 @@ class SDPMetadataClient {
   }
   
   getStatusId(name) {
-    if (!this.cache.statusMap) return name;
-    return this.cache.statusMap[name.toLowerCase()] || name;
+    if (!this.cache.statusMap) return null;
+    // For statuses, we return the properly formatted name, not an ID
+    return this.cache.statusMap[name.toLowerCase()] || null;
   }
   
   getCategoryId(name) {

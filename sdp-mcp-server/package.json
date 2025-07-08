@@ -26,7 +26,8 @@
     "test:oauth:js": "node scripts/test-oauth-simple.js",
     "db:migrate": "node dist/database/migrations.js",
     "db:migrate:js": "node scripts/run-migrations.js",
-    "fix:imports": "node scripts/fix-imports.js"
+    "fix:imports": "node scripts/fix-imports.js",
+    "mock:api": "node src/mock-sdp-api-server.cjs"
   },
   "keywords": [
     "mcp",
