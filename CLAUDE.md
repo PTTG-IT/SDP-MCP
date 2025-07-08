@@ -110,6 +110,8 @@ example/                         # Reference implementations (DO NOT MODIFY)
 │   ├── service-desk-plus-authentication.md    # OAuth flows and endpoints
 │   ├── multi-user-mcp-architecture.md        # Multi-tenant design
 │   ├── service-desk-plus-oauth-scopes.md     # Scope permissions reference
+│   ├── service-desk-plus-mandatory-fields.md # Required fields and error handling
+│   ├── service-desk-plus-sse-implementation.md # SSE server implementation details
 │   ├── mcp-server-architecture.md            # Server implementation
 │   ├── mcp-security-best-practices.md       # Security guidelines
 │   ├── mcp-client-server-communication.md   # Communication patterns
@@ -235,6 +237,8 @@ When adding new documentation to the knowledge folder:
 - **Errors**: Refer to common error codes documentation
 - **Error 4000**: General failure - check error messages array for details
 - **Error 4002**: UNAUTHORISED - verify custom domain and instance name
+- **Error 4012**: Mandatory fields missing - check `service-desk-plus-mandatory-fields.md`
+- **Instance Configuration**: Each SDP instance may require different mandatory fields
 
 **IMPORTANT REMINDER**: Always check `example/knowledge/` folder for detailed implementation examples and patterns before making API calls!
 

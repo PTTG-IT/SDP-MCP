@@ -63,6 +63,12 @@ class SDPAPIClientV2 {
             status: error.response.status,
             data: error.response.data
           });
+          // Log detailed error messages
+          if (error.response.data?.response_status?.messages) {
+            error.response.data.response_status.messages.forEach(msg => {
+              console.error(`  - ${msg.field || 'General'}: ${msg.message}`);
+            });
+          }
         }
         
         return Promise.reject(this.formatError(error));
@@ -175,19 +181,42 @@ class SDPAPIClientV2 {
     
     const request = {
       subject,
-      description: description || ''
+      description: description || '',
+      // All required fields based on API error
+      mode: { name: 'Web Form' },
+      request_type: { name: 'Incident' },
+      urgency: { name: '2 - General Concern' },  // Valid urgency
+      level: { name: '1 - Frontline' },  // Valid level
+      impact: { name: '1 - Affects User' },
+      category: { name: 'Software' },  // Default category
+      status: { name: 'Open' }
     };
     
-    // Use priority ID
+    // Use priority - only add if explicitly requested
     if (priority) {
       const priorityId = this.metadata.getPriorityId(priority);
-      request.priority = { id: priorityId };
+      // Only set if we got a valid ID, not the same string back
+      if (priorityId && priorityId !== priority) {
+        request.priority = { id: priorityId };
+      } else {
+        // Try with name format
+        request.priority = { name: priority };
+        console.error(`Warning: Using priority name "${priority}" instead of ID`);
+      }
     }
+    // Don't set default priority - let the system decide
     
     // Use category ID
     if (category) {
       const categoryId = this.metadata.getCategoryId(category);
-      request.category = { id: categoryId };
+      // Only set if we got a valid ID, not the same string back
+      if (categoryId && categoryId !== category) {
+        request.category = { id: categoryId };
+      } else {
+        console.error(`Warning: Could not find category ID for "${category}"`);
+        // Use name format as fallback
+        request.category = { name: category };
+      }
     }
     
     // Add requester
@@ -195,6 +224,9 @@ class SDPAPIClientV2 {
       request.requester = {};
       if (requester_email) request.requester.email_id = requester_email;
       if (requester_name) request.requester.name = requester_name;
+    } else {
+      // Default requester if none provided
+      request.requester = { email_id: 'office365alerts@microsoft.com' };
     }
     
     const params = {
@@ -218,17 +250,32 @@ class SDPAPIClientV2 {
     
     if (updates.status) {
       const statusId = this.metadata.getStatusId(updates.status);
-      request.status = { id: statusId };
+      if (statusId && statusId !== updates.status) {
+        request.status = { id: statusId };
+      } else {
+        console.error(`Warning: Could not find status ID for "${updates.status}"`);
+        request.status = { name: updates.status };
+      }
     }
     
     if (updates.priority) {
       const priorityId = this.metadata.getPriorityId(updates.priority);
-      request.priority = { id: priorityId };
+      if (priorityId && priorityId !== updates.priority) {
+        request.priority = { id: priorityId };
+      } else {
+        console.error(`Warning: Could not find priority ID for "${updates.priority}"`);
+        // Don't set priority if we can't find the ID
+      }
     }
     
     if (updates.category) {
       const categoryId = this.metadata.getCategoryId(updates.category);
-      request.category = { id: categoryId };
+      if (categoryId && categoryId !== updates.category) {
+        request.category = { id: categoryId };
+      } else {
+        console.error(`Warning: Could not find category ID for "${updates.category}"`);
+        request.category = { name: updates.category };
+      }
     }
     
     const params = {
@@ -240,55 +287,27 @@ class SDPAPIClientV2 {
   }
   
   /**
-   * Add note - try multiple formats
+   * Add note - use correct v3 API format
    */
   async addNote(requestId, noteContent, isPublic = true) {
-    // Format 1: Try with notes endpoint
     try {
-      const note = {
+      const request_note = {
         description: noteContent,
         notify_technician: false,
-        show_to_requester: isPublic
+        show_to_requester: isPublic,
+        add_to_linked_requests: false,
+        mark_first_response: false
       };
       
       const params = {
-        input_data: JSON.stringify({ note })
+        input_data: JSON.stringify({ request_note })
       };
       
       const response = await this.client.post(`/requests/${requestId}/notes`, null, { params });
-      return response.data.note;
+      return response.data.request_note;
     } catch (error) {
-      console.error('Note format 1 failed:', error.message);
-      
-      // Format 2: Try with request_notes
-      try {
-        const request_note = {
-          content: noteContent,
-          show_to_requester: isPublic
-        };
-        
-        const params = {
-          input_data: JSON.stringify({ request_note })
-        };
-        
-        const response = await this.client.post(`/requests/${requestId}/notes`, null, { params });
-        return response.data.request_note || response.data.note;
-      } catch (error2) {
-        console.error('Note format 2 failed:', error2.message);
-        
-        // Format 3: Try adding as conversation
-        const conversation = {
-          content: noteContent,
-          is_public: isPublic
-        };
-        
-        const params = {
-          input_data: JSON.stringify({ conversation })
-        };
-        
-        const response = await this.client.post(`/requests/${requestId}/conversations`, null, { params });
-        return response.data.conversation;
-      }
+      console.error('Failed to add note:', error.message);
+      throw error;
     }
   }
   
@@ -304,12 +323,19 @@ class SDPAPIClientV2 {
     const closedStatusId = this.metadata.getStatusId('closed');
     
     const request = {
-      status: { id: closedStatusId },
       closure_info: {
         closure_code: { name: closure_code },
         closure_comments: closure_comments || 'Request closed'
       }
     };
+    
+    // Only add status if we have a valid ID
+    if (closedStatusId && closedStatusId !== 'closed') {
+      request.status = { id: closedStatusId };
+    } else {
+      // Try common closed status names
+      request.status = { name: 'Closed' };
+    }
     
     const params = {
       input_data: JSON.stringify({ request })

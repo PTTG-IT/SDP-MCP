@@ -297,13 +297,17 @@ const toolImplementations = {
       
       console.error(`Creating new request: ${subject}`);
       
-      const request = await sdpClient.createRequest({
+      const requestData = {
         subject,
-        description: description || '',
-        priority: priority || 'medium',
-        category,
-        requester_email
-      });
+        description: description || ''
+      };
+      
+      // Only add optional fields if they're provided
+      if (priority) requestData.priority = priority;
+      if (category) requestData.category = category;
+      if (requester_email) requestData.requester_email = requester_email;
+      
+      const request = await sdpClient.createRequest(requestData);
       
       return {
         content: [{

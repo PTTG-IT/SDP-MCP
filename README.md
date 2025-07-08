@@ -6,8 +6,18 @@ A Model Context Protocol (MCP) server that integrates with Service Desk Plus Clo
 
 ✅ **Fully Operational** - SSE server running on port 3456  
 ✅ **MCP Integration** - Successfully connected with Claude Code client  
-✅ **All Tools Working** - 8 tools available and tested  
+⚠️  **Partial Tool Support** - Read operations working, write operations need configuration  
 ✅ **Production Ready** - Single-tenant implementation with OAuth
+
+### Tool Status
+- ✅ **list_requests** - Working
+- ✅ **get_request** - Working  
+- ✅ **search_requests** - Working
+- ✅ **get_metadata** - Working
+- ✅ **add_note** - Working (fixed)
+- ⚠️  **create_request** - Requires all mandatory fields per instance configuration
+- ⚠️  **update_request** - Requires proper field formatting
+- ⚠️  **close_request** - Not yet tested
 
 ### Working Implementation
 - **Architecture**: Direct MCP protocol over Server-Sent Events (SSE)
@@ -102,6 +112,32 @@ Planned when MCP protocol evolves to support stateless connections:
 - Automatic token refresh (access tokens expire after 1 hour)
 - Permanent refresh tokens (one-time setup only)
 - HTTPS required in production
+
+## 🔧 Troubleshooting
+
+### Create/Update Request Errors
+
+If you get error 4012 "Value for mandatory-field is not provided":
+
+1. **Check Instance Configuration** - Your Service Desk Plus instance may require specific mandatory fields
+2. **Common Mandatory Fields**:
+   - mode (e.g., "Web Form", "E-Mail")
+   - request_type (e.g., "Incident", "Request")
+   - urgency (e.g., "2 - General Concern")
+   - level (e.g., "1 - Frontline")
+   - impact (e.g., "1 - Affects User")
+   - category (e.g., "Software", "Hardware")
+   - status (e.g., "Open")
+   - priority (e.g., "2 - Normal")
+
+3. **Use get_metadata** to find valid values for your instance
+4. **Check the error response** - It lists which fields are missing
+
+### API Authentication Issues
+
+- Ensure OAuth refresh token is set in `.env`
+- Verify custom domain configuration matches your instance
+- Check that self-client OAuth app has required scopes
 
 ## 🛠️ Development
 

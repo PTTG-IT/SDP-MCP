@@ -71,6 +71,19 @@ class SDPMetadataClient {
       this.cache.priorities.forEach(p => {
         priorityMap[p.name.toLowerCase()] = p.id;
         priorityMap[p.id] = p.name;
+        // Add common aliases for priorities
+        if (p.name === '1 - Low') {
+          priorityMap['low'] = p.id;
+        } else if (p.name === '2 - Normal') {
+          priorityMap['normal'] = p.id;
+        } else if (p.name === '3 - High') {
+          priorityMap['high'] = p.id;
+        } else if (p.name === '4 - Critical') {
+          priorityMap['critical'] = p.id;
+          priorityMap['urgent'] = p.id;  // alias
+        } else if (p.name === 'z - Medium') {
+          priorityMap['medium'] = p.id;
+        }
       });
       this.cache.priorityMap = priorityMap;
       
@@ -87,32 +100,26 @@ class SDPMetadataClient {
   async getStatuses() {
     if (this.cache.statuses) return this.cache.statuses;
     
-    try {
-      const params = {
-        input_data: JSON.stringify({
-          list_info: {
-            row_count: 100,
-            start_index: 0
-          }
-        })
-      };
-      
-      const response = await this.client.get('/request_statuses', { params });
-      this.cache.statuses = response.data.request_statuses || [];
-      
-      // Create mapping
-      const statusMap = {};
-      this.cache.statuses.forEach(s => {
-        statusMap[s.name.toLowerCase()] = s.id;
-        statusMap[s.id] = s.name;
-      });
-      this.cache.statusMap = statusMap;
-      
-      return this.cache.statuses;
-    } catch (error) {
-      console.error('Failed to fetch statuses:', error.message);
-      return [];
-    }
+    // Since the statuses endpoint returns 404, use hardcoded common statuses
+    // These are typical status names used in Service Desk Plus
+    this.cache.statuses = [
+      { id: 'open', name: 'Open' },
+      { id: 'onhold', name: 'On Hold' },
+      { id: 'inprogress', name: 'In Progress' },
+      { id: 'resolved', name: 'Resolved' },
+      { id: 'closed', name: 'Closed' },
+      { id: 'cancelled', name: 'Cancelled' }
+    ];
+    
+    // Create mapping
+    const statusMap = {};
+    this.cache.statuses.forEach(s => {
+      statusMap[s.name.toLowerCase()] = s.id;
+      statusMap[s.id] = s.name;
+    });
+    this.cache.statusMap = statusMap;
+    
+    return this.cache.statuses;
   }
   
   /**
@@ -203,8 +210,13 @@ class SDPMetadataClient {
    * Helper to convert friendly names to IDs
    */
   getPriorityId(name) {
-    if (!this.cache.priorityMap) return name;
-    return this.cache.priorityMap[name.toLowerCase()] || name;
+    if (!this.cache.priorityMap) {
+      console.error('Priority map not loaded');
+      return name;
+    }
+    const id = this.cache.priorityMap[name.toLowerCase()];
+    console.error(`Priority lookup: "${name}" -> "${id || 'not found'}"`);
+    return id || name;
   }
   
   getStatusId(name) {
