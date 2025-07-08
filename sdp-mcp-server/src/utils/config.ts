@@ -48,6 +48,11 @@ const configSchema = z.object({
   // Service Desk Plus configuration
   sdp: z.object({
     apiVersion: z.string().default('v3'),
+    baseUrl: z.string().url().optional(), // Custom domain URL
+    instanceName: z.string().optional(), // Instance name for custom domain
+    portalName: z.string().optional(), // Portal name
+    dataCenter: z.enum(['US', 'EU', 'IN', 'AU', 'JP', 'CN']).optional(),
+    instanceUrl: z.string().url().optional(), // Deprecated - use baseUrl
     defaultPageSize: z.number().min(1).max(500).default(100),
     maxPageSize: z.number().min(1).max(1000).default(500),
     timeoutMs: z.number().min(1000).default(30000),
@@ -116,8 +121,8 @@ export function validateEnvironment(): Config {
   const rawConfig = {
     server: {
       env: process.env.NODE_ENV,
-      port: parseInt(process.env.PORT || '3000', 10),
-      host: process.env.HOST,
+      port: parseInt(process.env.SDP_HTTP_PORT || process.env.PORT || '3456', 10),
+      host: process.env.SDP_HTTP_HOST || process.env.HOST || '0.0.0.0',
       endpoints: process.env.SERVER_ENDPOINTS?.split(',') || [],
     },
     security: {
@@ -144,6 +149,11 @@ export function validateEnvironment(): Config {
     },
     sdp: {
       apiVersion: process.env.SDP_API_VERSION,
+      baseUrl: process.env.SDP_BASE_URL,
+      instanceName: process.env.SDP_INSTANCE_NAME,
+      portalName: process.env.SDP_PORTAL_NAME,
+      dataCenter: process.env.SDP_DATA_CENTER as any,
+      instanceUrl: process.env.SDP_INSTANCE_URL || process.env.SDP_BASE_URL,
       defaultPageSize: parseInt(process.env.SDP_DEFAULT_PAGE_SIZE || '100', 10),
       maxPageSize: parseInt(process.env.SDP_MAX_PAGE_SIZE || '500', 10),
       timeoutMs: parseInt(process.env.SDP_TIMEOUT_MS || '30000', 10),

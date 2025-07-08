@@ -1,0 +1,16 @@
+{
+  "name": "sdp-mcp-server",
+  "version": "1.0.0",
+  "description": "MCP SSE server for Service Desk Plus",
+  "type": "commonjs",
+  "scripts": {
+    "start": "node src/mcp-sse-server.js"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.0.0",
+    "axios": "^1.10.0",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.0",
+    "express": "^4.19.0"
+  }
+}

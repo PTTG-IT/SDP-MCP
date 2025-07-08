@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "service-desk-plus-remote": {
+      "command": "socat",
+      "args": [
+        "-",
+        "TCP:studio:3456"
+      ]
+    }
+  }
+}

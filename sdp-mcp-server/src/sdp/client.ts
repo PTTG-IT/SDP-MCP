@@ -475,13 +475,22 @@ export function createSDPClientFactory(
 
   return {
     /**
-     * Get or create client for a data center
+     * Get or create client for a tenant
      */
-    getClient(dataCenter: string): SDPClient {
-      let client = clients.get(dataCenter);
+    async getClient(tenantId: string): Promise<SDPClient> {
+      // Get tenant configuration
+      const tenant = await tenantManager.getTenant(tenantId);
+      if (!tenant) {
+        throw new SDPError('Tenant not found', 'TENANT_NOT_FOUND', 404);
+      }
+
+      // Use tenant's custom instance URL if available, otherwise use data center URL
+      const baseURL = tenant.oauthConfig.sdpInstanceUrl || this.getDataCenterURL(tenant.dataCenter);
+      const clientKey = `${tenantId}:${baseURL}`;
+      
+      let client = clients.get(clientKey);
       
       if (!client) {
-        const baseURL = this.getBaseURL(dataCenter);
         client = new SDPClient(
           {
             baseURL,
@@ -492,22 +501,23 @@ export function createSDPClientFactory(
           tokenManager,
           tenantManager
         );
-        clients.set(dataCenter, client);
+        clients.set(clientKey, client);
       }
       
       return client;
     },
 
     /**
-     * Get base URL for data center
+     * Get default URL for data center (fallback if no custom domain)
      */
-    getBaseURL(dataCenter: string): string {
+    getDataCenterURL(dataCenter: string): string {
       const dataCenterURLs: Record<string, string> = {
         US: 'https://sdpondemand.manageengine.com',
         EU: 'https://sdpondemand.manageengine.eu',
         IN: 'https://sdpondemand.manageengine.in',
         CN: 'https://sdpondemand.manageengine.cn',
         AU: 'https://sdpondemand.manageengine.com.au',
+        JP: 'https://sdpondemand.manageengine.jp',
       };
 
       const url = dataCenterURLs[dataCenter.toUpperCase()];

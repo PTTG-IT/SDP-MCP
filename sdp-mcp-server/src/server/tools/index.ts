@@ -43,3 +43,6 @@ export {
 // Export utilities
 export { ToolErrorHandler } from './errorHandling.js';
 export { ToolDocumentationGenerator } from './documentation.js';
+
+// Export simple tool definitions for SSE server
+export { tools } from './simpleTools.js';

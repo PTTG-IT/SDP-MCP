@@ -1,0 +1,15 @@
+{
+  "mcpServers": {
+    "service-desk-plus-remote": {
+      "command": "docker",
+      "args": [
+        "run",
+        "-i",
+        "--rm",
+        "alpine/socat",
+        "STDIO",
+        "TCP:192.168.2.10:3456"
+      ]
+    }
+  }
+}

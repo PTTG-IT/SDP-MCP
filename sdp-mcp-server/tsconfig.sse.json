@@ -1,0 +1,22 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "strict": false,
+    "noUnusedLocals": false,
+    "noUnusedParameters": false,
+    "noImplicitReturns": false,
+    "noUncheckedIndexedAccess": false,
+    "exactOptionalPropertyTypes": false,
+    "strictNullChecks": true,
+    "skipLibCheck": true
+  },
+  "include": [
+    "src/index-sse-simple.ts",
+    "src/sdp/simpleClient.ts",
+    "src/sdp/metadataClient.ts",
+    "src/server/handlers/simpleToolHandler.ts",
+    "src/server/tools/simpleTools.ts",
+    "src/monitoring/simpleLogging.ts",
+    "src/utils/simpleConfig.ts"
+  ]
+}

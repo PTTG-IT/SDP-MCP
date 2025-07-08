@@ -250,76 +250,54 @@ When adding new documentation to the knowledge folder:
 - **Reference** OAuth scopes and multi-tenant patterns in knowledge base
 - **Use** npm for all package management operations
 
-## 🏢 Architecture Notes
+## 🏢 Multi-Tenant Architecture
 
-### Current Single-Tenant Implementation
-The production server uses a single-tenant architecture:
-- OAuth tokens configured via environment variables
-- One server instance per organization
-- Simple and reliable for current MCP limitations
-- Full isolation by running separate instances
-
-### Future Multi-Tenant Architecture (Deferred)
-When MCP protocol evolves to support stateless connections:
+### Key Concepts
 - **Self-Client**: Each tenant uses their own Service Desk Plus self-client OAuth app
 - **Tenant Isolation**: Complete separation of tokens, data, and rate limits per tenant
-- **Scope-Based Access**: Tools restricted based on OAuth scopes granted to each tenant
+- **Scope-Based Access**: Tools are restricted based on OAuth scopes granted to each tenant
 - **Per-Tenant Encryption**: Each tenant's tokens encrypted with derived keys
 
+### Implementation Requirements
+- **Never** share state between tenants
+- **Always** validate tenant context before any operation
+- **Implement** per-tenant rate limiting and circuit breakers
+- **Use** tenant-specific encryption keys derived from master key
+- **Audit** all operations with tenant context
+
 ### OAuth Scope Management
-- **Currently**: All configured scopes available to single tenant
-- **Future**: Validate tenant has necessary scopes in their self-client setup
-- **Reference**: `example/knowledge/service-desk-plus-oauth-scopes.md` for complete scope list
+- **Check** required scopes before executing any tool
+- **Map** MCP tools to Service Desk Plus OAuth scopes
+- **Validate** tenant has necessary scopes in their self-client setup
+- **Handle** insufficient scope errors gracefully with clear messages
 
-## 🚀 Current Implementation Status (January 2025)
-
-### Working SSE Server
-The production implementation is now operational:
-- **Location**: `sdp-mcp-server/src/working-sse-server.cjs`
-- **Port**: 3456
-- **Endpoint**: `/sse`
-- **Status**: ✅ Fully working with Claude Code client
-- **Architecture**: Direct MCP protocol implementation (not using SDK SSEServerTransport)
-
-### Starting the Server
-```bash
-cd /Users/kalten/projects/SDP-MCP/sdp-mcp-server
-./start-sse-server.sh
-
-# Or run in background:
-node src/working-sse-server.cjs > server.log 2>&1 &
-```
-
-### Client Configuration
-```json
-{
-  "mcpServers": {
-    "service-desk-plus": {
-      "command": "npx",
-      "args": ["mcp-remote", "http://192.168.2.10:3456/sse", "--allow-http"]
-    }
-  }
-}
-```
+Refer to `example/knowledge/service-desk-plus-oauth-scopes.md` for complete scope reference.
 
 ## 🧱 Code Structure & Modularity
 
-### Current Implementation Files
-- `src/working-sse-server.cjs` - Main SSE server with MCP protocol
-- `src/sdp-api-client-v2.cjs` - SDP API client with OAuth
-- `src/sdp-oauth-client.cjs` - OAuth token management  
-- `src/sdp-api-metadata.cjs` - Metadata retrieval
-
-### File Organization (Future TypeScript Migration)
+### File Organization
 - **Never** create source files longer than 500 lines
 - **Split** large modules into smaller, focused files
-- **Use** CommonJS (.cjs) for now to avoid ES module conflicts
+- **Follow** the established pattern:
+  - API modules in `src/api/modules/`
+  - MCP tools in `src/mcp/`
+  - Utility functions in `src/utils/`
+  - Types in `src/types/` or module-specific `types.ts`
 
 ### Import Conventions
-Current implementation uses CommonJS:
-```javascript
-const express = require('express');
-const { SDPAPIClientV2 } = require('./sdp-api-client-v2.cjs');
+- **Use** ES module imports with `.js` extensions (even for TypeScript files)
+- **Prefer** relative imports for project files
+- **Group** imports: external packages, then internal modules, then types
+
+Example:
+```typescript
+import axios from 'axios';
+import { z } from 'zod';
+
+import { SDPClient } from '../api/client.js';
+import { SDPError } from '../utils/errors.js';
+
+import type { Request, User } from '../api/types.js';
 ```
 
 ## 🧪 Testing & Reliability
@@ -468,14 +446,7 @@ Example:
 - **Sanitize** data before sending to API
 - **Log** security-relevant events (auth failures, permission errors)
 
-### Current Security Implementation
-- **Environment Variables**: OAuth tokens stored securely in .env file
-- **HTTPS Required**: Use HTTPS in production (HTTP allowed for local dev)
-- **Token Refresh**: Automatic refresh of access tokens
-- **Rate Limiting**: Respects Service Desk Plus API rate limits
-- **Error Handling**: Graceful handling of auth failures
-
-### Future Multi-Tenant Security
+### Multi-Tenant Security
 - **Isolate** tenant data completely - no cross-tenant access
 - **Encrypt** OAuth tokens with per-tenant derived keys
 - **Validate** client certificates match tenant ID
@@ -496,23 +467,18 @@ Refer to security documentation for implementation details.
 
 **IMPORTANT**: All new development happens in `/Users/kalten/projects/SDP-MCP/sdp-mcp-server/`
 
-### Current Workflow (Single-Tenant SSE Server)
 1. **Navigate** to the project directory: `cd /Users/kalten/projects/SDP-MCP/sdp-mcp-server/`
 2. **Consult** `example/knowledge/` folder for relevant API documentation
 3. **Review** API endpoints section in this document
 4. **Check** Service Desk Plus API docs if needed: https://www.manageengine.com/products/service-desk/sdpod-v3-api/
-5. **Edit** CommonJS files (.cjs) in src/ directory
-6. **Test** by running the SSE server: `./start-sse-server.sh`
-7. **Monitor** logs: `tail -f server.log`
-8. **Update** documentation if discovering new API behaviors
-
-### Future TypeScript Workflow
-1. **Implement** features following TypeScript patterns
-2. **Validate** OAuth scopes for each operation
-3. **Test** with appropriate context
-4. **Run** tests with `npm test`
-5. **Lint** code with `npm run lint`
-6. **Build** project with `npm run build`
+5. **Implement** features following multi-tenant patterns
+6. **Validate** OAuth scopes for each operation
+6. **Test** with appropriate tenant context
+7. **Run** tests with `npm test`
+8. **Lint** code with `npm run lint`
+9. **Build** project with `npm run build`
+10. **Update** documentation if discovering new API behaviors
+11. **Audit** all tenant operations
 
 ## 📦 Dependencies
 
@@ -523,15 +489,10 @@ Refer to security documentation for implementation details.
 - **Document** why the dependency is needed
 
 ### Core Dependencies to Know
-- `express` - Web server for SSE endpoint
-- `axios` - HTTP client for SDP API calls
-- `dotenv` - Environment variable management
-- `cors` - Cross-origin resource sharing
-
-### Future Dependencies (TypeScript Migration)
-- `@modelcontextprotocol/sdk` - MCP server implementation (currently not used)
+- `@modelcontextprotocol/sdk` - MCP server implementation
+- `axios` - HTTP client with interceptors
 - `zod` - Runtime type validation
-- `typescript` - Type safety
+- `dotenv` - Environment variable management
 
 ## 🔄 Git Practices
 
@@ -540,34 +501,39 @@ Refer to security documentation for implementation details.
 - **Keep** commits focused on single changes
 - **Update** .gitignore for new ignore patterns, the main page should contain a summary of recent changes
 
-## 🗄️ Database Integration (Future Enhancement)
+## 🗄️ Database Integration (PostgreSQL)
 
-### PostgreSQL Configuration (Not Currently Used)
-The current implementation stores OAuth tokens in environment variables. Database integration is planned for future multi-tenant support:
+### Docker Configuration
+- **Always** check running containers with `docker ps -a` before assigning ports
+- **Use** non-standard ports to avoid conflicts (e.g., 5433 instead of 5432)
+- **PostgreSQL** is the chosen database for production use
+- **Location**: Database runs in Docker container named `sdp-mcp-postgres`
+- **Start**: Run `docker-compose up -d` to start the database
 
-- **PostgreSQL** chosen for future production use
-- **Docker** container configuration prepared
-- **Port**: 5433 (non-standard to avoid conflicts)
-- **Database**: sdp_mcp
-
-### Planned Database Features
-1. **Multi-Tenant Token Storage** (Future)
+### Database Features
+1. **Multi-Tenant Token Storage**
    - OAuth tokens stored per tenant with encryption
    - Self-client credentials encrypted at rest
    - Automatic token refresh per tenant from database
    - Tenant isolation at database level
 
-2. **Audit Logging** (Future)
-   - All API calls logged with context
-   - Performance metrics tracking
-   - Error tracking and analysis
+2. **Tenant-Specific Audit Logging**
+   - All API calls logged with tenant context
+   - Per-tenant performance metrics
+   - Tenant-specific error tracking
    - Compliance-ready audit trails
 
-3. **Change Tracking** (Future)
-   - All MCP tool operations tracked
-   - Rollback capability
-   - Entity history maintained
-   - Analytics and reporting
+3. **Change Tracking by Tenant**
+   - All MCP tool operations tracked per tenant
+   - Tenant-isolated rollback capability
+   - Entity history maintained per tenant
+   - Cross-tenant access prevention
+
+4. **Per-Tenant Analytics**
+   - Tool usage statistics by tenant
+   - Tenant-specific success/failure rates
+   - Quota usage monitoring
+   - Scope usage tracking
 
 ### Connection Details
 - Host: localhost 
@@ -681,17 +647,11 @@ async function list_requests(args: ListRequestsArgs) {
 
 ### Remember
 1. This is for Service Desk Plus **CLOUD** (not on-premises)
-2. Current implementation is **single-tenant** (multi-tenant deferred)
+2. Each tenant has their own self-client OAuth certificate
 3. OAuth refresh tokens are **permanent** - one-time setup only
-4. Working SSE server on port **3456**
+4. Always validate OAuth scopes before operations
 5. Use custom domain configuration for API calls
 6. Check documentation before implementing
 7. Server accessible at: studio, studio.pttg.loc, 192.168.2.10, 10.212.0.7, localhost
-
-### Current Working Implementation
-- **Server**: `src/working-sse-server.cjs`
-- **Client**: `src/sdp-api-client-v2.cjs`
-- **Start**: `./start-sse-server.sh`
-- **Test**: Client successfully connected and all tools working
 
 Remember: The goal is to create a robust, maintainable, and well-documented Service Desk Plus Cloud API integration that serves both programmatic use and AI assistant interactions effectively. The knowledge base in `example/knowledge/` is your primary reference for all API implementations.

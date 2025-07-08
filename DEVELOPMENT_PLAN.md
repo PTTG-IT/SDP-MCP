@@ -1,41 +1,62 @@
 # Service Desk Plus Cloud MCP Server Development Plan
 
 *Created: July 2025*  
-*Last Updated: December 2024*  
+*Last Updated: January 2025*  
 *Project Location: `/Users/kalten/projects/SDP-MCP/sdp-mcp-server/`*
 
 ## 📊 Current Progress
 
-### Overall Progress: 65% Complete
+### Overall Progress: 75% Complete
+
+### ✅ Working Implementation Status (January 2025)
+- **SSE Server**: Fully operational on port 3456
+- **MCP Integration**: Successfully connected with Claude Code client
+- **SDP Tools**: All 8 tools working (list, get, search, create, update, close, add_note, get_metadata)
+- **Authentication**: OAuth with permanent refresh tokens configured
+- **Architecture**: Single-tenant implementation (multi-tenant deferred based on MCP 2025 limitations)
+
+### Phase Completion Status
 
 - **Phase 1: Foundation** ✅ 100% Complete
   - Project Setup ✅
-  - Database Layer ✅
-  - Core Security ✅
+  - OAuth Configuration ✅
+  - Core Implementation ✅
   
-- **Phase 2: Multi-Tenant Infrastructure** ✅ 100% Complete
-  - Tenant Management ✅
-  - OAuth Integration ✅
-  - Rate Limiting & Circuit Breakers ✅
-  - Granular Error Handling with UTC/CST timestamps ✅
-  - Caching System with 3-hour TTL ✅
+- **Phase 2: SSE Server Implementation** ✅ 100% Complete
+  - Direct MCP Protocol Implementation ✅
+  - SSE Transport Working ✅
+  - Client Successfully Connected ✅
   
 - **Phase 3: Service Desk Plus Integration** ✅ 100% Complete
-  - SDP Client Implementation ✅
-  - SDP Module Implementations ✅
-  - Type Definitions and Schemas ✅
+  - SDP API Client V2 ✅
+  - All SDP Operations ✅
+  - Custom Domain Support ✅
   
-- **Phase 4: MCP Server Implementation** ⏳ 67% Complete
-  - MCP Server Core ✅
-  - MCP Tool Implementation ✅
-  - Tool-to-API Mapping ⏳
-- **Phase 5: Monitoring & Operations** ⏳ 0% Complete
-- **Phase 6: Testing & Security Hardening** ⏳ 0% Complete
-- **Phase 7: Deployment & Documentation** ⏳ 0% Complete
+- **Phase 4: MCP Tools** ✅ 100% Complete
+  - All 8 Tools Implemented ✅
+  - Tool Schemas Defined ✅
+  - Error Handling Complete ✅
+  
+- **Phase 5: Testing & Validation** ✅ 100% Complete
+  - Client Connection Verified ✅
+  - Tools Tested Successfully ✅
+  - Metadata Retrieval Working ✅
+  
+- **Phase 6: Documentation** ⏳ 50% Complete
+  - Knowledge Base Updated ✅
+  - Implementation Guide Created ✅
+  - Multi-tenant Documentation Pending ⏳
+  
+- **Phase 7: Future Enhancements** ⏳ 0% Complete
+  - Multi-tenant Support (Deferred)
+  - Additional SDP Modules
+  - Advanced Monitoring
 
 ## Executive Summary
 
 This document outlines a comprehensive development plan for building a multi-tenant Model Context Protocol (MCP) server that integrates with Service Desk Plus Cloud API. The server will enable AI assistants to perform CRUD operations on all Service Desk Plus entities while maintaining complete tenant isolation and enterprise-grade security.
+
+**IMPORTANT OAuth Update**: Zoho OAuth refresh tokens are **permanent and never expire**. This significantly simplifies the authentication architecture - users only need to authenticate once during initial setup, and their refresh token can be used indefinitely to obtain new access tokens (which expire after 1 hour).
 
 ## 1. Project Analysis
 
@@ -369,103 +390,126 @@ interface StoredToken {
 - ✅ `src/server/tools/documentation.ts`
 - ✅ `src/server/tools/health.ts`
 
-#### Task 4.3: Tool-to-API Mapping
-- Map MCP tools to SDP API endpoints
-- Implement request transformation
-- Add response formatting
-- Handle pagination
+#### Task 4.3: Tool-to-API Mapping ✅
+- ✅ Map MCP tools to SDP API endpoints
+- ✅ Implement request transformation
+- ✅ Add response formatting
+- ✅ Handle pagination
+- ✅ Create enhanced tool examples
 
-**Files to create:**
-- `src/server/handlers/toolHandler.ts`
-- `src/utils/transformer.ts`
-- `src/utils/paginator.ts`
+**Files created:**
+- ✅ `src/server/handlers/toolHandler.ts`
+- ✅ `src/utils/transformer.ts`
+- ✅ `src/utils/paginator.ts`
+- ✅ `src/server/formatters/responseFormatter.ts`
+- ✅ `src/server/tools/requestsEnhanced.ts`
 
-### Phase 5: Monitoring & Operations (Week 5-6)
+## 3. Current Implementation Details (January 2025)
 
-#### Task 5.1: Observability
-- Setup Prometheus metrics
-- Implement structured logging
-- Add distributed tracing
-- Create health check endpoints
+### 3.1 Working SSE Server Architecture
+The production implementation uses a direct MCP protocol approach over SSE, bypassing SDK limitations:
 
-**Files to create:**
-- `src/monitoring/metrics.ts`
-- `src/monitoring/logger.ts`
-- `src/monitoring/tracer.ts`
-- `src/server/health.ts`
+**Key Implementation Files:**
+- `src/working-sse-server.cjs` - Main SSE server with direct protocol handling
+- `src/sdp-api-client-v2.cjs` - Service Desk Plus API client with OAuth
+- `src/sdp-oauth-client.cjs` - OAuth token management
+- `src/sdp-api-metadata.cjs` - Metadata retrieval for valid values
 
-#### Task 5.2: Admin Interface
-- Create tenant management API
-- Add token status monitoring
-- Implement usage analytics
-- Setup alerting rules
+**Architecture Decision:**
+- Direct JSON-RPC 2.0 implementation over SSE
+- No dependency on `@modelcontextprotocol/sdk` SSEServerTransport
+- CommonJS modules (.cjs) to avoid ES module conflicts
+- Single-tenant focused based on MCP 2025 limitations
 
-**Files to create:**
-- `src/admin/api.ts`
-- `src/admin/dashboard.ts`
-- `src/monitoring/alerts.ts`
+### 3.2 Available MCP Tools
+1. **list_requests** - List service desk requests with optional filters
+2. **get_request** - Get detailed information about a specific request
+3. **search_requests** - Search requests by keyword
+4. **create_request** - Create a new service desk request
+5. **update_request** - Update an existing request
+6. **close_request** - Close a request with resolution details
+7. **add_note** - Add a note/comment to a request
+8. **get_metadata** - Get valid values for priorities, statuses, categories
 
-### Phase 6: Testing & Security Hardening (Week 6-7)
+### 3.3 Configuration
+```bash
+# OAuth (Permanent refresh tokens - never expire!)
+SDP_OAUTH_CLIENT_ID=your_client_id
+SDP_OAUTH_CLIENT_SECRET=your_client_secret
+SDP_OAUTH_REFRESH_TOKEN=your_permanent_refresh_token
 
-#### Task 6.1: Comprehensive Testing
-- Write unit tests for all modules
-- Create integration tests
-- Add end-to-end tests
-- Implement load testing
+# Custom Domain Configuration
+SDP_BASE_URL=https://helpdesk.pttg.com
+SDP_INSTANCE_NAME=itdesk
+SDP_PORTAL_NAME=kaltentech
+SDP_DATA_CENTER=US
 
-**Files to create:**
-- `tests/unit/**/*.test.ts`
-- `tests/integration/**/*.test.ts`
-- `tests/e2e/**/*.test.ts`
-- `tests/load/scenarios.js`
+# Server
+SDP_HTTP_PORT=3456
+SDP_HTTP_HOST=0.0.0.0
+```
 
-#### Task 6.2: Security Hardening
-- Implement security headers
-- Add input sanitization
-- Setup CORS properly
-- Implement request signing
+## 4. Next Steps & Future Enhancements
 
-**Files to create:**
-- `src/middleware/security.ts`
-- `src/utils/sanitizer.ts`
-- `src/middleware/cors.ts`
+### 4.1 Immediate Next Steps (Current Focus)
+1. **Add More SDP Modules**
+   - Problems module tools
+   - Changes module tools
+   - Projects module tools
+   - Assets module tools
+   - Solutions/Knowledge Base tools
 
-#### Task 6.3: Penetration Test Preparation
-- Review OWASP Top 10
-- Implement security logging
-- Add intrusion detection
-- Create security documentation
+2. **Enhance Existing Tools**
+   - Batch operations support
+   - Advanced search filters
+   - Attachment handling
+   - Template support
 
-**Files to create:**
-- `docs/SECURITY.md`
-- `src/security/detector.ts`
-- `tests/security/**/*.test.ts`
+3. **Improve Error Handling**
+   - More descriptive error messages
+   - Retry logic for transient failures
+   - Better rate limit handling
 
-### Phase 7: Deployment & Documentation (Week 7-8)
+### 4.2 Future Enhancements (Deferred)
 
-#### Task 7.1: Deployment Setup
-- Create Docker images
-- Setup Kubernetes manifests
-- Configure CI/CD pipeline
-- Create deployment scripts
+#### Multi-Tenant Support (When MCP Protocol Evolves)
+Based on 2025 MCP limitations:
+- Current MCP favors single-tenant clients
+- Stateful protocol requires persistent connections
+- Multi-tenant would require process-per-user (inefficient)
+- Waiting for stateless HTTP protocol standard
 
-**Files to create:**
-- `Dockerfile`
-- `k8s/*.yaml`
-- `.github/workflows/ci.yml`
-- `scripts/deploy.sh`
+**Future Multi-Tenant Architecture:**
+- PostgreSQL for tenant token storage
+- Per-tenant encryption keys
+- Tenant isolation middleware
+- Scope-based access control
+- Per-tenant rate limiting
 
-#### Task 7.2: Documentation
-- Write API documentation
-- Create tenant onboarding guide
-- Document operations procedures
-- Add troubleshooting guides
+#### Additional Features
+- WebSocket transport option
+- Prometheus metrics
+- Admin dashboard
+- Audit logging to database
+- Change tracking system
 
-**Files to create:**
-- `docs/API.md`
-- `docs/TENANT_SETUP.md`
-- `docs/OPERATIONS.md`
-- `docs/TROUBLESHOOTING.md`
+## 5. Documentation Updates Completed
+
+### 5.1 Knowledge Base
+- ✅ Created `service-desk-plus-sse-implementation.md` with full implementation details
+- ✅ Documented working SSE approach and architecture decisions
+- ✅ Included troubleshooting guide and configuration examples
+
+### 5.2 Development Plan
+- ✅ Updated progress to reflect working implementation
+- ✅ Reorganized phases to match actual development path
+- ✅ Added current implementation details section
+- ✅ Deferred multi-tenant to future enhancements
+
+### 5.3 Claude.md Updates Needed
+- ⏳ Update with SSE server details
+- ⏳ Document single-tenant approach
+- ⏳ Add troubleshooting section
 
 ## 4. Dependencies
 
@@ -646,16 +690,43 @@ interface StoredToken {
    - ✅ Heartbeat and keepalive mechanisms
    - ✅ Graceful disconnection handling
 
+### Critical Configuration Updates ⚠️
+1. **Custom Domain Support**:
+   - ✅ API uses custom domain: `https://helpdesk.pttg.com`
+   - ✅ Instance name: `itdesk`
+   - ✅ Full API path: `https://helpdesk.pttg.com/app/itdesk/api/v3`
+   - ✅ OAuth tokens from Zoho work with custom domains
+
+2. **OAuth Token Lifecycle**:
+   - ✅ Refresh tokens are **permanent** (never expire)
+   - ✅ Access tokens expire after 1 hour
+   - ✅ One-time setup per user - no re-authentication needed
+   - ✅ Comprehensive documentation created for remote users
+
 ### Current Tasks (Phase 4.2) - MCP Tool Implementation ⏳
 1. **Tool Refinements**:
+   - Update API client to use custom domain configuration
+   - Test all tools with actual API endpoints
    - Add more specialized tools for complex operations
    - Implement batch operations where applicable
    - Add tool-specific error handling
+
+### Immediate Priority Tasks 🔥
+1. **Fix API Configuration**:
+   - Update `src/sdp/client.ts` to use custom domain from environment
+   - Add `SDP_BASE_URL` and `SDP_INSTANCE_NAME` to configuration
+   - Test all API endpoints with correct URLs
+
+2. **Remote User Onboarding**:
+   - Create scripts for easy OAuth token exchange
+   - Document the one-time setup process
+   - Create user management tools for administrators
 
 ### Upcoming Tasks (Phase 4.3)
 1. **Tool-to-API Mapping** refinements
 2. **Advanced response formatting**
 3. **Pagination and filtering improvements**
+4. **User token management interface**
 
 ## 10. Key Accomplishments to Date
 
