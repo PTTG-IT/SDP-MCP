@@ -184,6 +184,7 @@
   },
   "active": "eea2f7febbd6211e",
   "lastOpenFiles": [
+    "example/knowledge/service-desk-plus-status-codes.md",
     "sdp-mcp-server/scripts/test-categories-subcategories.cjs",
     "sdp-mcp-server/FIX_SUMMARY.md",
     "sdp-mcp-server/scripts/test-fixes.cjs",
@@ -197,7 +198,6 @@
     "sdp-mcp-server/scripts/test-single-api-call.cjs",
     "sdp-mcp-server/scripts/debug-token-validation.cjs",
     "sdp-mcp-server/scripts/test-token-refresh.cjs",
-    "sdp-mcp-server/scripts/test-technicians-mock.cjs",
     "example/knowledge/service-desk-plus-mock-api.md",
     "example/knowledge/service-desk-plus-mandatory-fields.md",
     "README.md",

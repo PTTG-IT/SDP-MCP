@@ -88,6 +88,22 @@ class SDPAPIClientV2 {
                               JSON.stringify(errorData);
           
           // Don't refresh for missing endpoints or scope issues
+          // Check for specific status codes that indicate non-token issues
+          const statusCode = errorData?.response_status?.status_code;
+          
+          // Skip refresh for these status codes (not token-related)
+          const skipRefreshCodes = [
+            4002, // Forbidden - permission issue
+            4007, // Resource not found
+            7001  // License issue
+          ];
+          
+          if (skipRefreshCodes.includes(statusCode)) {
+            console.error(`Got 401 with status code ${statusCode}, skipping token refresh`);
+            return Promise.reject(error);
+          }
+          
+          // Also check message patterns
           const skipRefreshPatterns = [
             'endpoint not found',
             'resource not found',
@@ -129,12 +145,21 @@ class SDPAPIClientV2 {
             data: data
           }, null, 2));
           
-          // Log detailed error messages
-          if (error.response.data?.response_status?.messages) {
-            console.error('Error messages:');
-            error.response.data.response_status.messages.forEach(msg => {
-              console.error(`  - ${msg.field || 'General'}: ${msg.message}`);
-            });
+          // Log detailed error messages with status codes
+          if (error.response.data?.response_status) {
+            const status = error.response.data.response_status;
+            console.error(`API Status Code: ${status.status_code} - ${status.status}`);
+            
+            if (status.messages) {
+              console.error('Error details:');
+              status.messages.forEach(msg => {
+                if (msg.fields) {
+                  console.error(`  - Missing mandatory fields: ${msg.fields.join(', ')}`);
+                } else {
+                  console.error(`  - ${msg.field || 'General'}: ${msg.message}`);
+                }
+              });
+            }
           }
         }
         
