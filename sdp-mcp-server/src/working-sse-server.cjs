@@ -454,6 +454,133 @@ const toolImplementations = {
     }
   },
   
+  async reply_to_requester(params) {
+    try {
+      const { request_id, reply_message, mark_first_response = false } = params;
+      
+      if (!request_id || !reply_message) {
+        throw new Error('request_id and reply_message are required');
+      }
+      
+      console.error(`Replying to requester for request ${request_id}`);
+      
+      const note = await sdpClient.replyToRequester(request_id, reply_message, mark_first_response);
+      
+      return {
+        content: [{
+          type: 'text',
+          text: JSON.stringify({
+            success: true,
+            note_id: note.id,
+            request_id,
+            reply_sent: true,
+            first_response: mark_first_response,
+            message: `Email reply sent to requester for request #${request_id}`
+          }, null, 2)
+        }]
+      };
+    } catch (error) {
+      throw new Error(`Failed to reply to requester: ${error.message}`);
+    }
+  },
+  
+  async add_private_note(params) {
+    try {
+      const { request_id, note_content, notify_technician = true } = params;
+      
+      if (!request_id || !note_content) {
+        throw new Error('request_id and note_content are required');
+      }
+      
+      console.error(`Adding private note to request ${request_id}`);
+      
+      const note = await sdpClient.addPrivateNote(request_id, note_content, notify_technician);
+      
+      return {
+        content: [{
+          type: 'text',
+          text: JSON.stringify({
+            success: true,
+            note_id: note.id,
+            request_id,
+            is_private: true,
+            technician_notified: notify_technician,
+            message: `Private note added to request #${request_id}`
+          }, null, 2)
+        }]
+      };
+    } catch (error) {
+      throw new Error(`Failed to add private note: ${error.message}`);
+    }
+  },
+  
+  async send_first_response(params) {
+    try {
+      const { request_id, response_message } = params;
+      
+      if (!request_id || !response_message) {
+        throw new Error('request_id and response_message are required');
+      }
+      
+      console.error(`Sending first response for request ${request_id}`);
+      
+      const note = await sdpClient.sendFirstResponse(request_id, response_message);
+      
+      return {
+        content: [{
+          type: 'text',
+          text: JSON.stringify({
+            success: true,
+            note_id: note.id,
+            request_id,
+            first_response: true,
+            email_sent: true,
+            message: `First response sent to requester for request #${request_id}`
+          }, null, 2)
+        }]
+      };
+    } catch (error) {
+      throw new Error(`Failed to send first response: ${error.message}`);
+    }
+  },
+  
+  async get_request_conversation(params) {
+    try {
+      const { request_id } = params;
+      
+      if (!request_id) {
+        throw new Error('request_id is required');
+      }
+      
+      console.error(`Getting conversation for request ${request_id}`);
+      
+      const conversation = await sdpClient.getRequestConversation(request_id);
+      
+      const formattedConversation = conversation.map(note => ({
+        id: note.id,
+        content: note.description,
+        created_time: note.created_time?.display_value,
+        author: note.added_by?.name || note.added_by?.email_id,
+        visible_to_requester: note.show_to_requester,
+        is_first_response: note.mark_first_response
+      }));
+      
+      return {
+        content: [{
+          type: 'text',
+          text: JSON.stringify({
+            request_id,
+            conversation: formattedConversation,
+            total_notes: conversation.length,
+            message: `Retrieved ${conversation.length} conversation entries for request #${request_id}`
+          }, null, 2)
+        }]
+      };
+    } catch (error) {
+      throw new Error(`Failed to get request conversation: ${error.message}`);
+    }
+  },
+  
   async list_technicians(params) {
     // The /users endpoint doesn't exist in Service Desk Plus Cloud API v3
     // Return empty result to prevent 401 errors and token refresh loops
@@ -803,6 +930,84 @@ const tools = [
       },
       required: ['search_term']
     }
+  },
+  {
+    name: 'reply_to_requester',
+    description: 'Send an email reply to the requester that appears in the ticket conversation',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        request_id: {
+          type: 'string',
+          description: 'ID of the request to reply to'
+        },
+        reply_message: {
+          type: 'string',
+          description: 'The reply message content to send to the requester'
+        },
+        mark_first_response: {
+          type: 'boolean',
+          description: 'Whether to mark this as the first response to the ticket',
+          default: false
+        }
+      },
+      required: ['request_id', 'reply_message']
+    }
+  },
+  {
+    name: 'add_private_note',
+    description: 'Add a private note to a request (not visible to requester)',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        request_id: {
+          type: 'string',
+          description: 'ID of the request to add private note to'
+        },
+        note_content: {
+          type: 'string',
+          description: 'Content of the private note'
+        },
+        notify_technician: {
+          type: 'boolean',
+          description: 'Whether to notify the assigned technician',
+          default: true
+        }
+      },
+      required: ['request_id', 'note_content']
+    }
+  },
+  {
+    name: 'send_first_response',
+    description: 'Send the first response to a requester (marks as first response and sends email)',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        request_id: {
+          type: 'string',
+          description: 'ID of the request to send first response to'
+        },
+        response_message: {
+          type: 'string',
+          description: 'The first response message content'
+        }
+      },
+      required: ['request_id', 'response_message']
+    }
+  },
+  {
+    name: 'get_request_conversation',
+    description: 'Get the full conversation/notes history for a request',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        request_id: {
+          type: 'string',
+          description: 'ID of the request to get conversation for'
+        }
+      },
+      required: ['request_id']
+    }
   }
 ];
 
@@ -961,6 +1166,11 @@ app.listen(PORT, '0.0.0.0', () => {
   console.error('- close_request: Close request');
   console.error('- add_note: Add note to request');
   console.error('- search_requests: Search requests');
+  console.error('\nEmail Communication:');
+  console.error('- reply_to_requester: Send email reply to requester');
+  console.error('- add_private_note: Add private note (not visible to requester)');
+  console.error('- send_first_response: Send first response with email notification');
+  console.error('- get_request_conversation: Get full conversation history');
   console.error('\nUtilities:');
   console.error('- get_metadata: Get valid field values');
   console.error('- claude_code_command: Claude Code integration');

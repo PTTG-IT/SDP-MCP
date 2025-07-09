@@ -162,7 +162,79 @@ All requests require the following headers:
 
 ## API Operations
 
-### 1. Create Request
+### 1. Email Communication
+
+#### Reply to Requester
+Sends an email reply to the requester that appears in the ticket conversation.
+
+**URL**: `POST /requests/{request_id}/notes`
+
+**Request Format**:
+```json
+{
+  "request_note": {
+    "description": "Your reply message here",
+    "show_to_requester": true,
+    "notify_technician": false,
+    "add_to_linked_requests": false,
+    "mark_first_response": false
+  }
+}
+```
+
+**Key Parameters**:
+- `show_to_requester: true` - Makes the note visible to requester and sends email
+- `mark_first_response: true` - Marks this as the first response to the ticket
+- `notify_technician: false` - Doesn't notify the assigned technician
+
+#### Add Private Note
+Adds a private note that is not visible to the requester.
+
+**URL**: `POST /requests/{request_id}/notes`
+
+**Request Format**:
+```json
+{
+  "request_note": {
+    "description": "Private note content",
+    "show_to_requester": false,
+    "notify_technician": true,
+    "add_to_linked_requests": false,
+    "mark_first_response": false
+  }
+}
+```
+
+#### Send First Response
+Sends the first response to a requester with email notification.
+
+**URL**: `POST /requests/{request_id}/notes`
+
+**Request Format**:
+```json
+{
+  "request_note": {
+    "description": "First response message",
+    "show_to_requester": true,
+    "notify_technician": false,
+    "add_to_linked_requests": false,
+    "mark_first_response": true
+  }
+}
+```
+
+#### Get Request Conversation
+Retrieves the full conversation history for a request.
+
+**URL**: `GET /requests/{request_id}/notes`
+
+**Response**: Returns array of notes with conversation details including:
+- Note content and timestamps
+- Author information
+- Visibility settings
+- First response markers
+
+### 2. Create Request
 
 Creates a new service desk request.
 

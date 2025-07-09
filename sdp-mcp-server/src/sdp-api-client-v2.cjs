@@ -557,30 +557,31 @@ class SDPAPIClientV2 {
       }
     } else if (request.category) {
       // Default subcategory - always add one since it's often required
-      // The specific subcategory depends on the category
+      // IMPORTANT: Use validated subcategories that exist in the system
+      const categoryName = request.category.name || '';
       const categoryId = request.category.id || '0';
-      if (categoryId === '216826000000006689' || request.category.name === 'Software') {
-        request.subcategory = { name: 'Application' };
-      } else if (categoryId === '216826000000288100' || request.category.name === 'Hardware') {
+      
+      if (categoryId === '216826000000006689' || categoryName === 'Software') {
+        // Use a known valid subcategory for Software
+        request.subcategory = { name: 'Not in list' };
+        console.error('Using default Software subcategory: Not in list');
+      } else if (categoryId === '216826000000288100' || categoryName === 'Hardware') {
         // Use a valid subcategory for Hardware
         request.subcategory = { name: 'Not in list' };
+        console.error('Using default Hardware subcategory: Not in list');
       } else {
-        // Generic default subcategory
-        request.subcategory = { name: 'General' };
+        // Generic default subcategory - use Not in list as it's commonly available
+        request.subcategory = { name: 'Not in list' };
+        console.error('Using default subcategory: Not in list');
       }
     }
     
-    // Add requester
-    if (requester) {
-      // Direct requester object provided
-      request.requester = requester;
-    } else if (requester_email || requester_name) {
-      request.requester = {};
-      if (requester_email) request.requester.email_id = requester_email;
-      if (requester_name) request.requester.name = requester_name;
+    // Skip requester field for now to avoid validation issues
+    // The API user will be used as the requester automatically
+    // This prevents error 4001 with invalid email addresses
+    if (requester_email || requester_name || requester) {
+      console.error('Note: Requester field skipped to avoid validation errors - API user will be used as requester');
     } else {
-      // No default requester - SDP will use the API user as requester
-      // This avoids error 4001 for invalid email addresses
       console.error('No requester specified, SDP will use API user as requester');
     }
     
@@ -846,6 +847,116 @@ class SDPAPIClientV2 {
   }
   
   /**
+   * Reply to requester via email
+   * This sends an email reply that appears in the ticket conversation
+   * 
+   * @param {string} requestId - ID of the request to reply to
+   * @param {string} replyMessage - The reply message content
+   * @param {boolean} markFirstResponse - Whether to mark as first response (default: false)
+   * @returns {Promise<Object>} The created reply note object
+   */
+  async replyToRequester(requestId, replyMessage, markFirstResponse = false) {
+    try {
+      const request_note = {
+        description: replyMessage,
+        show_to_requester: true,       // This makes it visible to requester and sends email
+        notify_technician: false,      // Don't notify technician
+        add_to_linked_requests: false, // Don't add to linked requests
+        mark_first_response: markFirstResponse
+      };
+      
+      const params = {
+        input_data: JSON.stringify({ request_note })
+      };
+      
+      console.error(`Replying to requester for request ${requestId}`);
+      const response = await this.client.post(`/requests/${requestId}/notes`, null, { params });
+      return response.data.request_note;
+    } catch (error) {
+      console.error('Failed to reply to requester:', error.message);
+      throw error;
+    }
+  }
+  
+  /**
+   * Send private note to technician (not visible to requester)
+   * 
+   * @param {string} requestId - ID of the request
+   * @param {string} noteContent - The note content
+   * @param {boolean} notifyTechnician - Whether to notify technician (default: true)
+   * @returns {Promise<Object>} The created private note object
+   */
+  async addPrivateNote(requestId, noteContent, notifyTechnician = true) {
+    try {
+      const request_note = {
+        description: noteContent,
+        show_to_requester: false,      // Private - not visible to requester
+        notify_technician: notifyTechnician,
+        add_to_linked_requests: false,
+        mark_first_response: false
+      };
+      
+      const params = {
+        input_data: JSON.stringify({ request_note })
+      };
+      
+      console.error(`Adding private note for request ${requestId}`);
+      const response = await this.client.post(`/requests/${requestId}/notes`, null, { params });
+      return response.data.request_note;
+    } catch (error) {
+      console.error('Failed to add private note:', error.message);
+      throw error;
+    }
+  }
+  
+  /**
+   * Send first response to requester
+   * This marks the note as the first response and sends email to requester
+   * 
+   * @param {string} requestId - ID of the request
+   * @param {string} responseMessage - The first response message
+   * @returns {Promise<Object>} The created first response note object
+   */
+  async sendFirstResponse(requestId, responseMessage) {
+    try {
+      const request_note = {
+        description: responseMessage,
+        show_to_requester: true,       // Visible to requester and sends email
+        notify_technician: false,      // Don't notify technician
+        add_to_linked_requests: false, // Don't add to linked requests
+        mark_first_response: true      // Mark as first response
+      };
+      
+      const params = {
+        input_data: JSON.stringify({ request_note })
+      };
+      
+      console.error(`Sending first response for request ${requestId}`);
+      const response = await this.client.post(`/requests/${requestId}/notes`, null, { params });
+      return response.data.request_note;
+    } catch (error) {
+      console.error('Failed to send first response:', error.message);
+      throw error;
+    }
+  }
+  
+  /**
+   * Get all notes/conversation for a request
+   * 
+   * @param {string} requestId - ID of the request
+   * @returns {Promise<Array>} Array of notes/conversation entries
+   */
+  async getRequestConversation(requestId) {
+    try {
+      const response = await this.client.get(`/requests/${requestId}/notes`);
+      return response.data.request_notes || [];
+    } catch (error) {
+      console.error('Failed to get request conversation:', error.message);
+      throw error;
+    }
+  }
+  
+  /**
    * Close request
    * 
    * @param {string} requestId - ID of the request to close
@@ -987,6 +1098,146 @@ class SDPAPIClientV2 {
       page: response.data.list_info?.page || page,
       start_index: response.data.list_info?.start_index
     };
+  }
+  
+  /**
+   * Add email notifications to a request
+   * 
+   * @param {string} requestId - ID of the request
+   * @param {Array<string>} emailList - Array of email addresses to notify
+   * @returns {Promise<Object>} The updated request object
+   */
+  async addEmailNotifications(requestId, emailList) {
+    if (!Array.isArray(emailList)) {
+      throw new Error('Email list must be an array');
+    }
+    
+    // Validate email formats
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    const validEmails = emailList.filter(email => emailRegex.test(email));
+    
+    if (validEmails.length === 0) {
+      throw new Error('No valid email addresses provided');
+    }
+    
+    const request = {
+      email_ids_to_notify: validEmails
+    };
+    
+    return await this.updateRequest(requestId, request);
+  }
+  
+  /**
+   * Get email addresses associated with a request
+   * 
+   * @param {string} requestId - ID of the request
+   * @returns {Promise<Object>} Object containing email addresses
+   */
+  async getRequestEmailAddresses(requestId) {
+    const request = await this.getRequest(requestId);
+    return {
+      email_to: request.email_to || [],
+      email_cc: request.email_cc || [],
+      email_bcc: request.email_bcc || [],
+      email_ids_to_notify: request.email_ids_to_notify || []
+    };
+  }
+  
+  /**
+   * Create request with email mode
+   * 
+   * @param {Object} requestData - Request data with email-specific fields
+   * @param {Array<string>} requestData.notify_emails - Emails to notify
+   * @returns {Promise<Object>} The created request object
+   */
+  async createEmailRequest(requestData) {
+    const emailRequestData = {
+      ...requestData,
+      mode: 'E-Mail',
+      email_ids_to_notify: requestData.notify_emails || []
+    };
+    
+    return await this.createRequest(emailRequestData);
+  }
+  
+  /**
+   * Set requester by email address
+   * 
+   * @param {string} requestId - ID of the request
+   * @param {string} emailAddress - Email address of the requester
+   * @param {string} name - Optional name of the requester
+   * @returns {Promise<Object>} The updated request object
+   */
+  async setRequesterByEmail(requestId, emailAddress, name) {
+    // Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(emailAddress)) {
+      throw new Error('Invalid email address format');
+    }
+    
+    const request = {
+      requester: { 
+        email_id: emailAddress,
+        ...(name && { name })
+      }
+    };
+    
+    return await this.updateRequest(requestId, request);
+  }
+  
+  /**
+   * Assign technician by email address
+   * 
+   * @param {string} requestId - ID of the request
+   * @param {string} technicianEmail - Email address of the technician
+   * @returns {Promise<Object>} The updated request object
+   */
+  async assignTechnicianByEmail(requestId, technicianEmail) {
+    // Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!technicianEmail || !emailRegex.test(technicianEmail)) {
+      throw new Error('Valid technician email address is required');
+    }
+    
+    const request = {
+      technician: { email_id: technicianEmail }
+    };
+    
+    return await this.updateRequest(requestId, request);
+  }
+  
+  /**
+   * Search requests by requester email
+   * 
+   * @param {string} requesterEmail - Email address of the requester
+   * @param {Object} options - Search options
+   * @returns {Promise<Object>} Search results
+   */
+  async searchRequestsByRequesterEmail(requesterEmail, options = {}) {
+    const criteria = {
+      field: 'requester.email_id',
+      condition: 'is',
+      value: requesterEmail
+    };
+    
+    return await this.advancedSearchRequests(criteria, options);
+  }
+  
+  /**
+   * Search requests by technician email
+   * 
+   * @param {string} technicianEmail - Email address of the technician
+   * @param {Object} options - Search options
+   * @returns {Promise<Object>} Search results
+   */
+  async searchRequestsByTechnicianEmail(technicianEmail, options = {}) {
+    const criteria = {
+      field: 'technician.email_id',
+      condition: 'is',
+      value: technicianEmail
+    };
+    
+    return await this.advancedSearchRequests(criteria, options);
   }
   
   /**
