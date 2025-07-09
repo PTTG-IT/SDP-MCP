@@ -6,22 +6,31 @@ A Model Context Protocol (MCP) server that integrates with Service Desk Plus Clo
 
 ✅ **Fully Operational** - SSE server running on port 3456  
 ✅ **MCP Integration** - Successfully connected with Claude Code client  
-✅ **Enhanced Tool Support** - Read operations + technician management working  
-✅ **Production Ready** - Single-tenant implementation with OAuth
-✅ **OAuth Rate Limiting** - Fixed concurrent token refresh issues
+✅ **OAuth Fixed** - Proper Zoho-oauthtoken header format implemented
+✅ **Enhanced Search** - Advanced search criteria with AND/OR logic support
+✅ **Mock API Server** - Complete testing environment that replicates real API
+✅ **Cross-Platform** - Windows VS Code configuration support added
+
+### Recent Improvements
+- 🔧 Fixed Authorization header format from Bearer to Zoho-oauthtoken
+- 🔧 Added subcategory as mandatory field for request creation
+- 🔧 Implemented proper list_info structure with search_criteria
+- 🔧 Added advanced search capabilities with complex criteria
+- 🔧 Created comprehensive OAuth and search documentation
+- 🔧 Mock API now perfectly replicates real API behaviors
 
 ### Tool Status
-- ✅ **list_requests** - Working
+- ✅ **list_requests** - Working with proper search_criteria
 - ✅ **get_request** - Working  
-- ✅ **search_requests** - Working
+- ✅ **search_requests** - Enhanced with advanced criteria support
 - ✅ **get_metadata** - Working
-- ✅ **add_note** - Working (fixed)
-- ✅ **list_technicians** - Working (NEW)
-- ✅ **get_technician** - Working (NEW)
-- ✅ **find_technician** - Working (NEW)
-- ⚠️  **create_request** - Requires all mandatory fields per instance configuration
-- ⚠️  **update_request** - Requires proper field formatting
-- ⚠️  **close_request** - Not yet tested
+- ✅ **add_note** - Working
+- ✅ **list_technicians** - Working with fallback to /users endpoint
+- ✅ **get_technician** - Working
+- ✅ **find_technician** - Working
+- ✅ **create_request** - Fixed with subcategory support
+- ⚠️  **update_request** - Priority updates blocked by API (403 error)
+- ⚠️  **close_request** - Requires testing with proper technician assignment
 
 ### Working Implementation
 - **Architecture**: Direct MCP protocol over Server-Sent Events (SSE)
@@ -47,13 +56,27 @@ A Model Context Protocol (MCP) server that integrates with Service Desk Plus Clo
 
 ### Utilities
 11. **get_metadata** - Get valid field values for dropdowns
-2. **get_request** - Get detailed information about a specific request
-3. **search_requests** - Search requests by keyword
-4. **create_request** - Create a new service desk request
-5. **update_request** - Update an existing request
-6. **close_request** - Close a request with resolution details
-7. **add_note** - Add a note/comment to a request
-8. **get_metadata** - Get valid values for priorities, statuses, categories
+12. **claude_code_command** - Execute Claude Code commands
+
+## 🔧 Recent Fixes & Improvements
+
+### OAuth Authentication
+- Fixed authorization header format: `Zoho-oauthtoken` instead of `Bearer`
+- Implemented singleton OAuth client to prevent rate limiting
+- Added global refresh lock to prevent concurrent token refreshes
+- Tokens now properly reused until expiry
+
+### API Field Handling
+- Added mandatory `subcategory` field for request creation
+- Fixed status filtering using proper `search_criteria` format
+- Implemented API maximum of 100 rows per request
+- Added support for complex search queries with logical operators
+
+### Mock API Server
+- Complete replication of real API behaviors
+- Includes all error responses and business rules
+- Test data includes Clay Meuth technician (ID: 216826000000006907)
+- Supports both `/technicians` and `/users` endpoints
 
 ## 🔧 Quick Start
 
@@ -66,7 +89,7 @@ A Model Context Protocol (MCP) server that integrates with Service Desk Plus Clo
 
 1. **Clone the repository**
 ```bash
-git clone https://github.com/yourusername/SDP-MCP.git
+git clone https://github.com/PTTG-IT/SDP-MCP.git
 cd SDP-MCP/sdp-mcp-server
 ```
 
@@ -97,97 +120,163 @@ For Claude Code or other MCP clients:
   "mcpServers": {
     "service-desk-plus": {
       "command": "npx",
+      "args": ["mcp-remote", "http://localhost:3456/sse", "--allow-http"]
+    }
+  }
+}
+```
+
+For remote access:
+```json
+{
+  "mcpServers": {
+    "service-desk-plus": {
+      "command": "npx",
       "args": ["mcp-remote", "http://192.168.2.10:3456/sse", "--allow-http"]
     }
   }
 }
 ```
 
-## 🏗️ Architecture
+For Windows VS Code:
+```json
+{
+  "mcpServers": {
+    "service-desk-plus": {
+      "command": "npx",
+      "args": ["-y", "mcp-remote", "http://10.212.0.7:3456/sse", "--allow-http"]
+    }
+  }
+}
+```
 
-### Current: Single-Tenant SSE Server
-- Direct MCP protocol implementation (no SDK dependency)
-- OAuth tokens via environment variables
-- Automatic token refresh
-- CommonJS modules to avoid ES module conflicts
+## 🧪 Testing with Mock API
 
-### Future: Multi-Tenant Support
-Planned when MCP protocol evolves to support stateless connections:
-- PostgreSQL for token storage
-- Per-tenant isolation
-- Scope-based access control
-- Rate limiting per tenant
+The project includes a complete mock API server for safe testing:
+
+```bash
+# Start mock API server (port 3457)
+npm run mock:api
+
+# Use mock API with SSE server
+export SDP_USE_MOCK_API=true
+./start-sse-server.sh
+```
+
+The mock API:
+- Replicates exact error responses from real API
+- Enforces same business rules (can't update closed tickets)
+- Includes test data with `is_mock: true` identifier
+- Perfect for development and testing
 
 ## 📚 Documentation
 
-- [Development Plan](DEVELOPMENT_PLAN.md) - Project roadmap and status
-- [Claude Guidelines](CLAUDE.md) - AI assistant development guidelines
-- [SSE Implementation](example/knowledge/service-desk-plus-sse-implementation.md) - Technical details
-- [OAuth Setup Guide](sdp-mcp-server/docs/OAUTH_SETUP_GUIDE.md) - OAuth configuration
+### Knowledge Base
+- `example/knowledge/service-desk-plus-authentication.md` - OAuth implementation guide
+- `example/knowledge/service-desk-plus-oauth-complete.md` - Complete OAuth reference
+- `example/knowledge/service-desk-plus-search-criteria.md` - Advanced search guide
+- `example/knowledge/service-desk-plus-mandatory-fields.md` - Required fields reference
+- `example/knowledge/service-desk-plus-sse-implementation.md` - SSE server details
 
-## 🔐 Security
+### API Documentation
+- Main Documentation: https://www.manageengine.com/products/service-desk/sdpod-v3-api/
+- OAuth Guide: https://www.manageengine.com/products/service-desk/sdpod-v3-api/getting-started/oauth-2.0.html
 
-- OAuth tokens stored securely in environment variables
-- Automatic token refresh (access tokens expire after 1 hour)
-- Permanent refresh tokens (one-time setup only)
-- HTTPS required in production
+## 🔑 OAuth Configuration
 
-## 🔧 Troubleshooting
+### Required Environment Variables
+```bash
+# Service Desk Plus Configuration
+SDP_BASE_URL=https://helpdesk.yourdomain.com   # Custom domain
+SDP_INSTANCE_NAME=itdesk                       # Instance name
+SDP_PORTAL_NAME=yourportal                     # Portal name
+SDP_DATA_CENTER=US                             # Data center (US, EU, IN, AU, JP, UK, CA, CN)
 
-### Create/Update Request Errors
+# OAuth Credentials
+SDP_OAUTH_CLIENT_ID=your_client_id
+SDP_OAUTH_CLIENT_SECRET=your_client_secret
+SDP_OAUTH_REFRESH_TOKEN=your_permanent_refresh_token
 
-If you get error 4012 "Value for mandatory-field is not provided":
-
-1. **Check Instance Configuration** - Your Service Desk Plus instance may require specific mandatory fields
-2. **Common Mandatory Fields**:
-   - mode (e.g., "Web Form", "E-Mail")
-   - request_type (e.g., "Incident", "Request")
-   - urgency (e.g., "2 - General Concern")
-   - level (e.g., "1 - Frontline")
-   - impact (e.g., "1 - Affects User")
-   - category (e.g., "Software", "Hardware")
-   - status (e.g., "Open")
-   - priority (e.g., "2 - Normal")
-
-3. **Use get_metadata** to find valid values for your instance
-4. **Check the error response** - It lists which fields are missing
-
-### API Authentication Issues
-
-- Ensure OAuth refresh token is set in `.env`
-- Verify custom domain configuration matches your instance
-- Check that self-client OAuth app has required scopes
-
-## 🛠️ Development
-
-### Project Structure
-```
-sdp-mcp-server/
-├── src/
-│   ├── working-sse-server.cjs   # Main SSE server
-│   ├── sdp-api-client-v2.cjs   # SDP API client
-│   ├── sdp-oauth-client.cjs    # OAuth management
-│   └── sdp-api-metadata.cjs    # Metadata retrieval
-├── .env                         # Environment config
-├── start-sse-server.sh         # Startup script
-└── SSE_SERVER_READY.md         # Status documentation
+# Optional: Use mock API for testing
+SDP_USE_MOCK_API=false
 ```
 
-### Next Steps
-- Add more SDP modules (problems, changes, projects, assets)
-- Enhance existing tools with batch operations
-- Improve error handling and retry logic
-- Add attachment support
-- Implement template support
+### OAuth Setup Steps
+1. Create a self-client OAuth app in Service Desk Plus
+2. Generate authorization code with required scopes
+3. Exchange code for permanent refresh token
+4. Configure .env with credentials
 
-## 📝 License
+See `docs/OAUTH_SETUP_GUIDE.md` for detailed instructions.
 
-MIT License - see LICENSE file for details
+## 🏗️ Architecture
+
+### Current Implementation (Single-Tenant)
+- Direct MCP protocol implementation over SSE
+- OAuth tokens configured via environment variables
+- Singleton OAuth client prevents rate limiting issues
+- Smart token refresh only on 401 errors
+- Production-ready and fully tested
+
+### Future Multi-Tenant Architecture
+When MCP protocol evolves to support stateless connections:
+- Multiple clients connecting to single server
+- Per-tenant OAuth token management
+- Complete tenant isolation
+- Database-backed token storage
+
+## 🐛 Troubleshooting
+
+### Common Issues
+
+1. **OAuth Rate Limiting**
+   - Error: "You have made too many requests continuously"
+   - Solution: Wait 5-15 minutes, server implements proper token reuse
+
+2. **Field Validation Errors (4012)**
+   - Error: Missing mandatory fields
+   - Solution: Check instance configuration for required fields
+
+3. **Priority Update Errors (403)**
+   - Error: "Cannot give value for priority"
+   - Solution: This is an API limitation, priority may not be updatable
+
+4. **Authentication Errors (401)**
+   - Error: "UNAUTHORISED"
+   - Solution: Verify OAuth tokens and custom domain configuration
+
+### Debug Mode
+```bash
+# Enable debug logging
+export DEBUG=sdp:*
+./start-sse-server.sh
+```
 
 ## 🤝 Contributing
 
-Contributions welcome! Please read CONTRIBUTING.md for guidelines.
+1. Fork the repository
+2. Create your feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
+
+## 📄 License
+
+This project is licensed under the MIT License - see the LICENSE file for details.
+
+## 🙏 Acknowledgments
+
+- ManageEngine for Service Desk Plus API
+- Anthropic for the Model Context Protocol
+- Claude Code for testing and integration
 
 ## 📞 Support
 
-For issues and feature requests, please use the GitHub issue tracker.
+For issues and questions:
+- GitHub Issues: https://github.com/PTTG-IT/SDP-MCP/issues
+- Documentation: Check `example/knowledge/` folder
+- API Reference: https://www.manageengine.com/products/service-desk/sdpod-v3-api/
+
+---
+
+**Note**: This is for Service Desk Plus **Cloud** (SDPOnDemand), not on-premises installations.
