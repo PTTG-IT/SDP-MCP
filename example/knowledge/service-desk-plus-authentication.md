@@ -217,8 +217,11 @@ Include access token in API requests:
 ```http
 GET /api/v3/requests
 Host: sdpondemand.manageengine.{dc}
-Authorization: Bearer {access_token}
+Authorization: Zoho-oauthtoken {access_token}
+Accept: application/vnd.manageengine.sdp.v3+json
 ```
+
+**Important**: Use `Zoho-oauthtoken` prefix, not `Bearer`
 
 #### 6. Refresh Access Token
 

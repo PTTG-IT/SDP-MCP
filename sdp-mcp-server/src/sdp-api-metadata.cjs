@@ -13,7 +13,7 @@ class SDPMetadataClient {
     this.customDomain = config.customDomain || process.env.SDP_BASE_URL || 'https://helpdesk.pttg.com';
     this.instanceName = config.instanceName || process.env.SDP_INSTANCE_NAME || 'itdesk';
     
-    this.oauth = new SDPOAuthClient(config);
+    this.oauth = SDPOAuthClient.getInstance(config);
     
     // Check if we should use mock API
     const baseURL = process.env.SDP_USE_MOCK_API === 'true'
@@ -34,7 +34,7 @@ class SDPMetadataClient {
     this.client.interceptors.request.use(
       async (config) => {
         const token = await this.oauth.getAccessToken();
-        config.headers['Authorization'] = `Bearer ${token}`;
+        config.headers['Authorization'] = `Zoho-oauthtoken ${token}`;
         return config;
       },
       (error) => Promise.reject(error)

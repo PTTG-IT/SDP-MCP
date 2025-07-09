@@ -6,8 +6,9 @@ A Model Context Protocol (MCP) server that integrates with Service Desk Plus Clo
 
 ✅ **Fully Operational** - SSE server running on port 3456  
 ✅ **MCP Integration** - Successfully connected with Claude Code client  
-⚠️  **Partial Tool Support** - Read operations working, write operations need configuration  
+✅ **Enhanced Tool Support** - Read operations + technician management working  
 ✅ **Production Ready** - Single-tenant implementation with OAuth
+✅ **OAuth Rate Limiting** - Fixed concurrent token refresh issues
 
 ### Tool Status
 - ✅ **list_requests** - Working
@@ -15,6 +16,9 @@ A Model Context Protocol (MCP) server that integrates with Service Desk Plus Clo
 - ✅ **search_requests** - Working
 - ✅ **get_metadata** - Working
 - ✅ **add_note** - Working (fixed)
+- ✅ **list_technicians** - Working (NEW)
+- ✅ **get_technician** - Working (NEW)
+- ✅ **find_technician** - Working (NEW)
 - ⚠️  **create_request** - Requires all mandatory fields per instance configuration
 - ⚠️  **update_request** - Requires proper field formatting
 - ⚠️  **close_request** - Not yet tested
@@ -27,7 +31,22 @@ A Model Context Protocol (MCP) server that integrates with Service Desk Plus Clo
 
 ## 📋 Available Tools
 
+### Request Management
 1. **list_requests** - List service desk requests with optional filters
+2. **get_request** - Get detailed information about a specific request
+3. **search_requests** - Search requests using various criteria
+4. **create_request** - Create new service desk requests
+5. **update_request** - Update existing requests
+6. **close_request** - Close requests with closure information
+7. **add_note** - Add notes to existing requests
+
+### Technician Management (NEW)
+8. **list_technicians** - List available technicians for assignment
+9. **get_technician** - Get detailed technician information
+10. **find_technician** - Find technician by name or email
+
+### Utilities
+11. **get_metadata** - Get valid field values for dropdowns
 2. **get_request** - Get detailed information about a specific request
 3. **search_requests** - Search requests by keyword
 4. **create_request** - Create a new service desk request

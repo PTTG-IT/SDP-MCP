@@ -59,11 +59,124 @@ const mockData = {
   levels: [
     { id: '216826000000006671', name: '1 - Frontline', deleted: false },
     { id: '216826000000006673', name: '2 - Technician', deleted: false }
-  ]
+  ],
+  subcategories: {
+    'Software': [
+      { id: '216826000000006691', name: 'Application', deleted: false },
+      { id: '216826000000006693', name: 'Operating System', deleted: false },
+      { id: '216826000000006695', name: 'Database', deleted: false },
+      { id: '216826000000006697', name: 'General', deleted: false }
+    ],
+    'Hardware': [
+      { id: '216826000000288102', name: 'Computer', deleted: false },
+      { id: '216826000000288104', name: 'Printer', deleted: false },
+      { id: '216826000000288106', name: 'Network', deleted: false },
+      { id: '216826000000288108', name: 'General', deleted: false }
+    ],
+    'Access': [
+      { id: '216826000000459713', name: 'File Access', deleted: false },
+      { id: '216826000000459715', name: 'Application Access', deleted: false },
+      { id: '216826000000459717', name: 'General', deleted: false }
+    ]
+  }
 };
 
 // Initialize with some mock tickets
 function initializeMockData() {
+  // Initialize technicians
+  mockData.technicians = [
+    {
+      id: 216826000000007001,
+      name: 'John Admin',
+      email_id: 'john.admin@mock.com',
+      phone: '555-0101',
+      mobile: '555-1001',
+      department: { id: 216826000000006301, name: 'IT Support' },
+      job_title: 'Senior Technician',
+      employee_id: 'EMP001',
+      is_vip_user: false,
+      is_technician: true,
+      roles: [{ id: 216826000000006001, name: 'Admin' }],
+      cost_per_hour: 75,
+      is_mock: true
+    },
+    {
+      id: 216826000000007002,
+      name: 'Jane Support',
+      email_id: 'jane.support@mock.com',
+      phone: '555-0102',
+      mobile: '555-1002',
+      department: { id: 216826000000006301, name: 'IT Support' },
+      job_title: 'Support Technician',
+      employee_id: 'EMP002',
+      is_vip_user: false,
+      is_technician: true,
+      roles: [{ id: 216826000000006002, name: 'Technician' }],
+      cost_per_hour: 50,
+      is_mock: true
+    },
+    {
+      id: 216826000000007003,
+      name: 'Bob Manager',
+      email_id: 'bob.manager@mock.com',
+      phone: '555-0103',
+      mobile: '555-1003',
+      department: { id: 216826000000006302, name: 'Management' },
+      job_title: 'IT Manager',
+      employee_id: 'EMP003',
+      is_vip_user: false,
+      is_technician: true,
+      roles: [{ id: 216826000000006003, name: 'Manager' }],
+      cost_per_hour: 100,
+      is_mock: true
+    },
+    {
+      id: 216826000000006907,
+      name: 'Clay Meuth',
+      email_id: 'cmeuth@pttg.com',
+      phone: '555-0104',
+      mobile: '555-1004',
+      department: { id: 216826000000006301, name: 'IT Support' },
+      job_title: 'Senior IT Technician',
+      employee_id: 'EMP004',
+      is_vip_user: false,
+      is_technician: true,
+      roles: [{ id: 216826000000006002, name: 'Technician' }],
+      cost_per_hour: 85,
+      is_mock: true
+    }
+  ];
+  
+  // Initialize users (requesters)
+  mockData.users = [
+    {
+      id: 216826000000008001,
+      name: 'Alice User',
+      email_id: 'alice.user@mock.com',
+      phone: '555-0201',
+      mobile: '555-2001',
+      department: { id: 216826000000006303, name: 'Sales' },
+      job_title: 'Sales Representative',
+      employee_id: 'EMP101',
+      is_vip_user: false,
+      is_technician: false,
+      is_mock: true
+    },
+    {
+      id: 216826000000008002,
+      name: 'Charlie Customer',
+      email_id: 'charlie.customer@mock.com',
+      phone: '555-0202',
+      mobile: '555-2002',
+      department: { id: 216826000000006304, name: 'Marketing' },
+      job_title: 'Marketing Manager',
+      employee_id: 'EMP102',
+      is_vip_user: true,
+      is_technician: false,
+      is_mock: true
+    }
+  ];
+  
   // Add a few mock tickets
   const mockTickets = [
     {
@@ -80,6 +193,7 @@ function initializeMockData() {
       urgency: { name: '2 - General Concern' },
       level: { name: '1 - Frontline' },
       category: { name: 'Software' },
+      subcategory: { name: 'Application' },
       has_notes: false,
       is_mock: true
     },
@@ -102,6 +216,7 @@ function initializeMockData() {
       urgency: { name: '3 - Have Workaround' },
       level: { name: '1 - Frontline' },
       category: { name: 'Hardware' },
+      subcategory: { name: 'Computer' },
       has_notes: true,
       is_mock: true
     }
@@ -115,7 +230,8 @@ function initializeMockData() {
 // Middleware to check auth header
 function checkAuth(req, res, next) {
   const authHeader = req.headers.authorization;
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+  // Check for proper Zoho-oauthtoken format
+  if (!authHeader || (!authHeader.startsWith('Zoho-oauthtoken ') && !authHeader.startsWith('Bearer '))) {
     return res.status(401).json({
       response_status: {
         status_code: 4002,
@@ -159,6 +275,11 @@ function checkMandatoryFields(request) {
       missingFields.push(field);
     }
   });
+  
+  // Check for subcategory - it's mandatory when category is provided
+  if (request.category && !request.subcategory) {
+    missingFields.push('subcategory');
+  }
   
   // Special check for priority field issues
   if (request.priority && typeof request.priority === 'object') {
@@ -319,15 +440,31 @@ app.put('/app/:instance/api/v3/requests/:id', (req, res) => {
     });
   }
   
+  // Check if trying to update priority on any ticket (mimics real API behavior)
+  if (updates.priority) {
+    return res.status(403).json({
+      response_status: {
+        status_code: 4000,
+        messages: [{
+          status_code: 4002,
+          field: 'priority',
+          message: 'Cannot give value for priority',
+          type: 'failed'
+        }],
+        status: 'failed'
+      }
+    });
+  }
+  
   // Check if trying to update closed ticket
-  if (existingRequest.status.name === 'Closed' && (updates.priority || updates.category)) {
+  if (existingRequest.status.name === 'Closed' && updates.category) {
     return res.status(403).json({
       response_status: {
         status_code: 4000,
         messages: [{
           status_code: 4001,
-          field: Object.keys(updates)[0],
-          message: `Cannot give value for ${Object.keys(updates)[0]}`,
+          field: 'category',
+          message: 'Cannot update category on closed ticket',
           type: 'failed'
         }],
         status: 'failed'
@@ -451,6 +588,134 @@ app.get('/app/:instance/api/v3/urgencies', (req, res) => {
 
 app.get('/app/:instance/api/v3/levels', (req, res) => {
   res.json({ levels: mockData.levels });
+});
+
+// Technician endpoints
+app.get('/app/:instance/api/v3/technicians', (req, res) => {
+  const listInfo = req.inputData?.list_info || {};
+  const searchTerm = listInfo.search_value || listInfo.search_fields?.name || '';
+  const limit = listInfo.row_count || 10;
+  const startIndex = listInfo.start_index || 0;
+  
+  let technicians = [...mockData.technicians];
+  
+  // Apply search filter
+  if (searchTerm) {
+    technicians = technicians.filter(tech => 
+      tech.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      tech.email_id.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+  }
+  
+  // Apply is_technician filter if provided
+  if (listInfo.filter_by?.name === 'is_technician') {
+    technicians = technicians.filter(tech => tech.is_technician === true);
+  }
+  
+  // Apply pagination
+  const paginatedTechnicians = technicians.slice(startIndex, startIndex + limit);
+  
+  res.json({
+    technicians: paginatedTechnicians,
+    list_info: {
+      has_more_rows: technicians.length > (startIndex + limit),
+      start_index: startIndex,
+      row_count: paginatedTechnicians.length
+    },
+    total_count: technicians.length,
+    response_status: {
+      status_code: 2000,
+      status: 'success'
+    }
+  });
+});
+
+app.get('/app/:instance/api/v3/technicians/:id', (req, res) => {
+  const techId = parseInt(req.params.id);
+  const technician = mockData.technicians.find(t => t.id === techId);
+  
+  if (!technician) {
+    return res.status(404).json({
+      response_status: {
+        status_code: 4007,
+        messages: [{ message: 'Resource not found' }],
+        status: 'failed'
+      }
+    });
+  }
+  
+  res.json({
+    technician,
+    response_status: {
+      status_code: 2000,
+      status: 'success'
+    }
+  });
+});
+
+// User endpoints
+app.get('/app/:instance/api/v3/users', (req, res) => {
+  const listInfo = req.inputData?.list_info || {};
+  const searchTerm = listInfo.search_value || listInfo.search_fields?.name || '';
+  const limit = listInfo.row_count || 10;
+  const startIndex = listInfo.start_index || 0;
+  
+  // Include both users and technicians in the users endpoint
+  let users = [...mockData.users, ...mockData.technicians];
+  
+  // Apply is_technician filter if provided
+  if (listInfo.filter_by?.name === 'is_technician' && listInfo.filter_by?.value === true) {
+    users = users.filter(user => user.is_technician === true);
+  }
+  
+  // Apply search filter
+  if (searchTerm) {
+    users = users.filter(user => 
+      user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      user.email_id.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+  }
+  
+  // Apply pagination
+  const paginatedUsers = users.slice(startIndex, startIndex + limit);
+  
+  res.json({
+    users: paginatedUsers,
+    list_info: {
+      has_more_rows: users.length > (startIndex + limit),
+      start_index: startIndex,
+      row_count: paginatedUsers.length
+    },
+    total_count: users.length,
+    response_status: {
+      status_code: 2000,
+      status: 'success'
+    }
+  });
+});
+
+app.get('/app/:instance/api/v3/users/:id', (req, res) => {
+  const userId = parseInt(req.params.id);
+  // Look in both users and technicians
+  const user = [...mockData.users, ...mockData.technicians].find(u => u.id === userId);
+  
+  if (!user) {
+    return res.status(404).json({
+      response_status: {
+        status_code: 4007,
+        messages: [{ message: 'Resource not found' }],
+        status: 'failed'
+      }
+    });
+  }
+  
+  res.json({
+    user,
+    response_status: {
+      status_code: 2000,
+      status: 'success'
+    }
+  });
 });
 
 // Initialize data and start server

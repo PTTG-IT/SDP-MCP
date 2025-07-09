@@ -7,6 +7,12 @@ const axios = require('axios');
 const fs = require('fs').promises;
 const path = require('path');
 
+// Global singleton instance
+let globalOAuthInstance = null;
+
+// Global refresh lock to prevent concurrent refreshes across all instances
+let globalRefreshPromise = null;
+
 class SDPOAuthClient {
   constructor(config = {}) {
     // Use the refresh token from sdp-mcp-server's .env if available
@@ -19,6 +25,9 @@ class SDPOAuthClient {
     this.accessToken = null;
     this.tokenExpiry = null;
     this.tokenFile = path.join(__dirname, '..', '.sdp-tokens.json');
+    
+    // Use global refresh lock
+    this.refreshPromise = null;
     
     // OAuth endpoints by data center
     this.oauthEndpoints = {
@@ -50,7 +59,8 @@ class SDPOAuthClient {
       this.accessToken = tokens.accessToken;
       this.tokenExpiry = new Date(tokens.tokenExpiry);
       this.refreshToken = tokens.refreshToken || this.refreshToken;
-      console.error('Loaded tokens from file');
+      console.error('Loaded tokens from file, expires at:', this.tokenExpiry.toISOString());
+      console.error('Token valid?', this.isTokenValid());
     } catch (error) {
       console.error('No token file found, will need to refresh');
     }
@@ -90,6 +100,31 @@ class SDPOAuthClient {
       throw new Error('No refresh token available. Please run OAuth setup.');
     }
     
+    // If refresh is already in progress globally, wait for it
+    if (globalRefreshPromise) {
+      console.error('Global token refresh already in progress, waiting...');
+      const token = await globalRefreshPromise;
+      // Update this instance with the new token
+      this.accessToken = token;
+      return token;
+    }
+    
+    // Start new refresh
+    globalRefreshPromise = this._doRefresh();
+    
+    try {
+      const token = await globalRefreshPromise;
+      return token;
+    } finally {
+      // Clear the global promise when done
+      globalRefreshPromise = null;
+    }
+  }
+  
+  /**
+   * Internal method to actually perform the refresh
+   */
+  async _doRefresh() {
     console.error('Refreshing access token...');
     
     try {
@@ -133,8 +168,18 @@ class SDPOAuthClient {
       return this.accessToken;
     }
     
-    // Refresh token
+    // Refresh token (with global lock to prevent concurrent refreshes)
     return await this.refreshAccessToken();
+  }
+  
+  /**
+   * Get or create singleton instance
+   */
+  static getInstance(config = {}) {
+    if (!globalOAuthInstance) {
+      globalOAuthInstance = new SDPOAuthClient(config);
+    }
+    return globalOAuthInstance;
   }
   
   /**

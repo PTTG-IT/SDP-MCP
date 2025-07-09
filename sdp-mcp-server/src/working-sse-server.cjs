@@ -289,7 +289,7 @@ const toolImplementations = {
   
   async create_request(params) {
     try {
-      const { subject, description, priority, category, requester_email } = params;
+      const { subject, description, priority, category, subcategory, requester_email, technician_id, technician_email } = params;
       
       if (!subject) {
         throw new Error('subject is required');
@@ -305,7 +305,10 @@ const toolImplementations = {
       // Only add optional fields if they're provided
       if (priority) requestData.priority = priority;
       if (category) requestData.category = category;
+      if (subcategory) requestData.subcategory = subcategory;
       if (requester_email) requestData.requester_email = requester_email;
+      if (technician_id) requestData.technician_id = technician_id;
+      if (technician_email) requestData.technician_email = technician_email;
       
       const request = await sdpClient.createRequest(requestData);
       
@@ -449,6 +452,130 @@ const toolImplementations = {
     } catch (error) {
       throw new Error(`Failed to search requests: ${error.message}`);
     }
+  },
+  
+  async list_technicians(params) {
+    try {
+      const { limit = 25, search_term } = params;
+      
+      console.error(`Listing technicians: limit=${limit}, search=${search_term}`);
+      
+      const result = await sdpClient.users.listTechnicians({
+        limit,
+        searchTerm: search_term
+      });
+      
+      const formattedTechnicians = result.technicians.map(tech => ({
+        id: tech.id,
+        name: tech.name,
+        email: tech.email_id,
+        phone: tech.phone,
+        mobile: tech.mobile,
+        department: tech.department?.name,
+        job_title: tech.job_title,
+        employee_id: tech.employee_id,
+        is_technician: true,
+        site: tech.site?.name
+      }));
+      
+      return {
+        content: [{
+          type: 'text',
+          text: JSON.stringify({
+            technicians: formattedTechnicians,
+            total_count: result.total_count,
+            has_more: result.has_more,
+            usage_hint: 'Use technician ID or email when assigning tickets'
+          }, null, 2)
+        }]
+      };
+    } catch (error) {
+      throw new Error(`Failed to list technicians: ${error.message}`);
+    }
+  },
+  
+  async get_technician(params) {
+    try {
+      const { technician_id } = params;
+      
+      if (!technician_id) {
+        throw new Error('technician_id is required');
+      }
+      
+      console.error(`Getting technician details for ID: ${technician_id}`);
+      
+      const technician = await sdpClient.users.getTechnician(technician_id);
+      
+      return {
+        content: [{
+          type: 'text',
+          text: JSON.stringify({
+            id: technician.id,
+            name: technician.name,
+            email: technician.email_id,
+            phone: technician.phone,
+            mobile: technician.mobile,
+            department: technician.department,
+            job_title: technician.job_title,
+            employee_id: technician.employee_id,
+            cost_per_hour: technician.cost_per_hour,
+            site: technician.site,
+            reporting_to: technician.reporting_to,
+            groups: technician.associated_groups || []
+          }, null, 2)
+        }]
+      };
+    } catch (error) {
+      throw new Error(`Failed to get technician: ${error.message}`);
+    }
+  },
+  
+  async find_technician(params) {
+    try {
+      const { search_term } = params;
+      
+      if (!search_term) {
+        throw new Error('search_term is required');
+      }
+      
+      // Remove mailto: prefix if present
+      const cleanSearchTerm = search_term.replace(/^mailto:/i, '');
+      
+      console.error(`Finding technician by: ${cleanSearchTerm}`);
+      
+      const technician = await sdpClient.users.findTechnician(cleanSearchTerm);
+      
+      if (!technician) {
+        return {
+          content: [{
+            type: 'text',
+            text: JSON.stringify({
+              found: false,
+              message: `No technician found matching "${search_term}"`,
+              suggestion: 'Try using list_technicians to see available technicians'
+            }, null, 2)
+          }]
+        };
+      }
+      
+      return {
+        content: [{
+          type: 'text',
+          text: JSON.stringify({
+            found: true,
+            technician: {
+              id: technician.id,
+              name: technician.name,
+              email: technician.email_id,
+              department: technician.department?.name,
+              usage: `Use ID "${technician.id}" or email "${technician.email_id}" to assign tickets`
+            }
+          }, null, 2)
+        }]
+      };
+    } catch (error) {
+      throw new Error(`Failed to find technician: ${error.message}`);
+    }
   }
 };
 
@@ -495,8 +622,9 @@ const tools = [
       properties: {
         limit: { 
           type: 'number', 
-          description: 'Maximum number of requests to return',
-          default: 10 
+          description: 'Maximum number of requests to return (max 100 per API limits)',
+          default: 10,
+          maximum: 100
         },
         status: { 
           type: 'string',
@@ -561,9 +689,21 @@ const tools = [
           type: 'string',
           description: 'Category of the request'
         },
+        subcategory: {
+          type: 'string',
+          description: 'Subcategory of the request (often required)'
+        },
         requester_email: {
           type: 'string',
           description: 'Email of the requester'
+        },
+        technician_id: {
+          type: 'string',
+          description: 'ID of technician to assign (use list_technicians to find IDs)'
+        },
+        technician_email: {
+          type: 'string',
+          description: 'Email of technician to assign (will lookup ID automatically)'
         }
       },
       required: ['subject']
@@ -600,6 +740,18 @@ const tools = [
         category: {
           type: 'string',
           description: 'New category'
+        },
+        subcategory: {
+          type: 'string',
+          description: 'New subcategory'
+        },
+        technician_id: {
+          type: 'string',
+          description: 'ID of technician to assign'
+        },
+        technician_email: {
+          type: 'string',
+          description: 'Email of technician to assign (will lookup ID)'
         }
       },
       required: ['request_id']
@@ -664,11 +816,59 @@ const tools = [
         },
         limit: {
           type: 'number',
-          description: 'Maximum results',
-          default: 10
+          description: 'Maximum results (max 100 per API limits)',
+          default: 10,
+          maximum: 100
         }
       },
       required: ['query']
+    }
+  },
+  {
+    name: 'list_technicians',
+    description: 'List available technicians for ticket assignment',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        limit: {
+          type: 'number',
+          description: 'Maximum number of technicians to return (max 100 per API limits)',
+          default: 25,
+          maximum: 100
+        },
+        search_term: {
+          type: 'string',
+          description: 'Search by name or email'
+        }
+      }
+    }
+  },
+  {
+    name: 'get_technician',
+    description: 'Get detailed information about a specific technician',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        technician_id: {
+          type: 'string',
+          description: 'The ID of the technician'
+        }
+      },
+      required: ['technician_id']
+    }
+  },
+  {
+    name: 'find_technician',
+    description: 'Find a technician by name or email (returns best match)',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        search_term: {
+          type: 'string',
+          description: 'Name or email to search for'
+        }
+      },
+      required: ['search_term']
     }
   }
 ];
@@ -810,9 +1010,33 @@ app.listen(PORT, '0.0.0.0', () => {
   console.error(`SSE endpoint: http://0.0.0.0:${PORT}/sse`);
   console.error(`Health: http://0.0.0.0:${PORT}/health`);
   console.error(`\nIntegrated Service Desk Plus tools:`);
-  tools.forEach(tool => {
-    console.error(`- ${tool.name}: ${tool.description}`);
-  });
+  console.error('Request Management:');
+  console.error('- list_requests: List service desk requests');
+  console.error('- get_request: Get request details');
+  console.error('- create_request: Create new request');
+  console.error('- update_request: Update existing request');
+  console.error('- close_request: Close request');
+  console.error('- add_note: Add note to request');
+  console.error('- search_requests: Search requests');
+  console.error('\nUser Management:');
+  console.error('- list_technicians: List available technicians');
+  console.error('- get_technician: Get technician details');
+  console.error('- find_technician: Find technician by name/email');
+  console.error('\nUtilities:');
+  console.error('- get_metadata: Get valid field values');
+  console.error('- claude_code_command: Claude Code integration');
+  
+  console.error('\n🪟 Windows VS Code Configuration:');
+  console.error('Create .vscode/mcp.json or %USERPROFILE%\\.mcp.json:');
+  console.error(JSON.stringify({
+    servers: {
+      'service-desk-plus': {
+        type: 'stdio',
+        command: 'npx',
+        args: ['-y', 'mcp-remote', 'http://10.212.0.7:' + PORT + '/sse', '--allow-http']
+      }
+    }
+  }, null, 2));
   
   if (!sdpClient) {
     console.error('\n⚠️  SDP client not initialized. Please configure OAuth credentials.');
