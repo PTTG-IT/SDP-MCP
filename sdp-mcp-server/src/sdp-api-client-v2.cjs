@@ -7,6 +7,7 @@ const axios = require('axios');
 const { SDPOAuthClient } = require('./sdp-oauth-client.cjs');
 const { SDPMetadataClient } = require('./sdp-api-metadata.cjs');
 const { SDPUsersAPI } = require('./sdp-api-users.cjs');
+const errorLogger = require('./utils/error-logger.cjs');
 
 class SDPAPIClientV2 {
   constructor(config = {}) {
@@ -81,8 +82,15 @@ class SDPAPIClientV2 {
         
         // Only refresh on actual 401 Unauthorized errors with token issues
         if (error.response?.status === 401) {
-          // Check if it's a token issue or just missing endpoint/scope
+          // IMPORTANT: Check if it's HTML error page (endpoint doesn't exist)
           const errorData = error.response?.data;
+          
+          // If we get HTML back, it's a 404/missing endpoint, not auth issue
+          if (typeof errorData === 'string' && errorData.includes('<html>')) {
+            console.error('Got 401 with HTML response - endpoint does not exist, skipping token refresh');
+            return Promise.reject(error);
+          }
+          
           const errorMessage = errorData?.response_status?.messages?.[0]?.message || 
                               errorData?.message || 
                               JSON.stringify(errorData);
@@ -134,6 +142,15 @@ class SDPAPIClientV2 {
           }
         }
         
+        // Handle 400 errors with HTML (non-existent endpoints)
+        if (error.response?.status === 400) {
+          const errorData = error.response?.data;
+          if (typeof errorData === 'string' && errorData.includes('<html>')) {
+            console.error('Got 400 with HTML response - endpoint does not exist');
+            error.message = 'API endpoint does not exist';
+          }
+        }
+        
         if (error.response) {
           // Don't log full HTML responses
           const data = typeof error.response.data === 'string' && error.response.data.includes('<html>') 
@@ -163,7 +180,15 @@ class SDPAPIClientV2 {
           }
         }
         
-        return Promise.reject(this.formatError(error));
+        // Log error with status codes
+        const formattedError = this.formatError(error);
+        errorLogger.logApiError(formattedError, {
+          endpoint: error.config?.url,
+          method: error.config?.method,
+          requestData: error.config?.data
+        });
+        
+        return Promise.reject(formattedError);
       }
     );
     
@@ -193,15 +218,30 @@ class SDPAPIClientV2 {
     if (error.response?.data?.response_status) {
       const status = error.response.data.response_status;
       const messages = status.messages || [];
-      return {
+      
+      // Build detailed error info
+      const errorInfo = {
         code: status.status_code,
+        httpStatus: error.response.status,
         message: messages.map(m => m.message).join('; ') || 'API Error',
-        details: error.response.data
+        details: error.response.data,
+        // Add specific field information
+        fields: messages.filter(m => m.fields).flatMap(m => m.fields),
+        fieldErrors: messages.filter(m => m.field).map(m => ({
+          field: m.field,
+          message: m.message
+        }))
       };
+      
+      // Log status codes for debugging
+      console.error(`API Error - Status Code: ${status.status_code}, HTTP: ${error.response.status}`);
+      
+      return errorInfo;
     }
     
     return {
       code: error.response?.status || 'UNKNOWN',
+      httpStatus: error.response?.status,
       message: error.message,
       details: error.response?.data
     };
@@ -319,12 +359,82 @@ class SDPAPIClientV2 {
   
   /**
    * Create request with proper IDs
+   * 
+   * @param {Object} requestData - Request creation data
+   * @param {string} requestData.subject - Subject of the request (required, max 250 chars)
+   * @param {string} requestData.description - Description of the request (HTML supported)
+   * @param {string} requestData.priority - Priority level (low, medium, high, urgent)
+   * @param {string} requestData.category - Category name
+   * @param {string} requestData.subcategory - Subcategory name
+   * @param {Object} requestData.requester - Requester object with email_id
+   * @param {string} requestData.requester_email - Requester email address
+   * @param {string} requestData.requester_name - Requester name
+   * @param {string} requestData.technician_id - Technician ID for assignment
+   * @param {string} requestData.technician_email - Technician email for assignment
+   * @param {string} requestData.impact_details - Impact description (max 250 chars)
+   * @param {Array} requestData.email_ids_to_notify - Email addresses to notify
+   * @param {string} requestData.urgency - Urgency level
+   * @param {string} requestData.impact - Impact level
+   * @param {string} requestData.level - Support level
+   * @param {string} requestData.mode - Creation mode
+   * @param {string} requestData.request_type - Type of request
+   * @param {Object} requestData.due_by_time - Due date/time
+   * @param {Object} requestData.first_response_due_by_time - First response due time
+   * @param {Array} requestData.assets - Associated assets
+   * @param {Array} requestData.configuration_items - Configuration items
+   * @param {Object} requestData.udf_fields - User-defined fields
+   * @param {Object} requestData.template - Template to use
+   * @param {Object} requestData.site - Associated site
+   * @param {Object} requestData.group - Assigned group
+   * @param {Object} requestData.service_category - Service category
+   * @param {Object} requestData.service_approvers - Service approval configuration
+   * @param {Object} requestData.resources - Service catalog resources
+   * @returns {Promise<Object>} The created request object
    */
   async createRequest(requestData) {
-    const { subject, description, priority = 'medium', category, subcategory, requester, requester_email, requester_name, technician_id, technician_email } = requestData;
+    const { 
+      subject, 
+      description, 
+      priority = 'medium', 
+      category, 
+      subcategory, 
+      requester, 
+      requester_email, 
+      requester_name, 
+      technician_id, 
+      technician_email,
+      impact_details,
+      email_ids_to_notify,
+      urgency,
+      impact,
+      level,
+      mode,
+      request_type,
+      due_by_time,
+      first_response_due_by_time,
+      assets,
+      configuration_items,
+      udf_fields,
+      template,
+      site,
+      group,
+      service_category,
+      service_approvers,
+      resources
+    } = requestData;
     
     if (!subject) {
       throw new Error('Subject is required');
+    }
+    
+    // Validate subject length
+    if (subject.length > 250) {
+      throw new Error('Subject must be 250 characters or less');
+    }
+    
+    // Validate impact_details length
+    if (impact_details && impact_details.length > 250) {
+      throw new Error('Impact details must be 250 characters or less');
     }
     
     await this.ensureMetadata();
@@ -333,27 +443,83 @@ class SDPAPIClientV2 {
       subject,
       description: description || '',
       // All required fields based on API error
-      mode: { name: 'Web Form' },
-      request_type: { name: 'Incident' },
-      urgency: { name: '2 - General Concern' },  // Valid urgency
-      level: { name: '1 - Frontline' },  // Valid level
-      impact: { name: '1 - Affects User' },
-      category: { name: 'Software' },  // Default category
+      mode: mode ? { name: mode } : { name: 'Web Form' },
+      request_type: request_type ? { name: request_type } : { name: 'Incident' },
+      urgency: urgency ? { name: urgency } : { name: '2 - General Concern' },  // Valid urgency
+      level: level ? { name: level } : { name: '1 - Frontline' },  // Valid level
+      impact: impact ? { name: impact } : { name: '1 - Affects User' },
+      category: category ? { name: category } : { name: 'Software' },  // Default category
       status: { name: 'Open' }
     };
     
-    // Use priority name format
-    if (priority) {
-      const priorityMap = {
-        'low': '1 - Low',
-        'medium': 'z - Medium',
-        'high': '3 - High',
-        'urgent': '4 - Critical'
-      };
-      const priorityName = priorityMap[priority.toLowerCase()] || priority;
-      request.priority = { name: priorityName };
-      console.error(`Using priority name: "${priorityName}"`);
+    // Add optional fields
+    if (impact_details) {
+      request.impact_details = impact_details;
     }
+    
+    if (email_ids_to_notify && Array.isArray(email_ids_to_notify)) {
+      request.email_ids_to_notify = email_ids_to_notify;
+    }
+    
+    if (due_by_time) {
+      request.due_by_time = due_by_time;
+    }
+    
+    if (first_response_due_by_time) {
+      request.first_response_due_by_time = first_response_due_by_time;
+    }
+    
+    if (assets && Array.isArray(assets)) {
+      request.assets = assets;
+    }
+    
+    if (configuration_items && Array.isArray(configuration_items)) {
+      request.configuration_items = configuration_items;
+    }
+    
+    if (udf_fields && typeof udf_fields === 'object') {
+      request.udf_fields = udf_fields;
+    }
+    
+    if (template) {
+      request.template = typeof template === 'string' ? { name: template } : template;
+    }
+    
+    if (site) {
+      request.site = typeof site === 'string' ? { name: site } : site;
+    }
+    
+    if (group) {
+      request.group = typeof group === 'string' ? { name: group } : group;
+    }
+    
+    if (service_category) {
+      request.service_category = typeof service_category === 'string' ? { name: service_category } : service_category;
+    }
+    
+    if (service_approvers) {
+      request.service_approvers = service_approvers;
+    }
+    
+    if (resources) {
+      request.resources = resources;
+    }
+    
+    // SKIP priority on creation - business rules prevent it (error 4002)
+    // Let SDP use its default priority setting
+    // Priority can be updated after creation if needed
+    // if (priority) {
+    //   const priorityMap = {
+    //     'low': '1 - Low',
+    //     'medium': '2 - Normal',
+    //     'high': '3 - High',
+    //     'urgent': '4 - Critical'
+    //   };
+    //   const priorityName = priorityMap[priority.toLowerCase()] || priority;
+    //   request.priority = { name: priorityName };
+    //   console.error(`Using priority name: "${priorityName}"`);
+    // }
+    console.error('Skipping priority on creation due to business rules - will use SDP default');
     
     // Use category ID
     if (category) {
@@ -379,7 +545,15 @@ class SDPAPIClientV2 {
       if (typeof subcategory === 'object' && subcategory.id) {
         request.subcategory = subcategory;
       } else if (typeof subcategory === 'string') {
-        request.subcategory = { name: subcategory };
+        // Map common subcategory names to valid ones
+        const subcategoryMap = {
+          'printer': 'Printer/Scanner',
+          'printers': 'Printer/Scanner',
+          'scanner': 'Printer/Scanner',
+          'scanners': 'Printer/Scanner'
+        };
+        const mappedSubcategory = subcategoryMap[subcategory.toLowerCase()] || subcategory;
+        request.subcategory = { name: mappedSubcategory };
       }
     } else if (request.category) {
       // Default subcategory - always add one since it's often required
@@ -387,6 +561,9 @@ class SDPAPIClientV2 {
       const categoryId = request.category.id || '0';
       if (categoryId === '216826000000006689' || request.category.name === 'Software') {
         request.subcategory = { name: 'Application' };
+      } else if (categoryId === '216826000000288100' || request.category.name === 'Hardware') {
+        // Use a valid subcategory for Hardware
+        request.subcategory = { name: 'Not in list' };
       } else {
         // Generic default subcategory
         request.subcategory = { name: 'General' };
@@ -411,15 +588,9 @@ class SDPAPIClientV2 {
     if (technician_id) {
       request.technician = { id: technician_id };
     } else if (technician_email) {
-      // Try to find technician by email first
-      try {
-        const tech = await this.users.findTechnician(technician_email);
-        if (tech) {
-          request.technician = { id: tech.id };
-        }
-      } catch (error) {
-        console.error(`Could not find technician by email: ${technician_email}`);
-      }
+      // Use technician email directly - the /users endpoint doesn't exist in SDP Cloud API
+      console.error(`Using technician email directly: ${technician_email}`);
+      request.technician = { email_id: technician_email };
     }
     
     const params = {
@@ -445,14 +616,134 @@ class SDPAPIClientV2 {
   
   /**
    * Update request with proper IDs
+   * 
+   * @param {string} requestId - ID of the request to update
+   * @param {Object} updates - Fields to update
+   * @param {string} updates.subject - Updated subject (max 250 chars)
+   * @param {string} updates.description - Updated description (HTML supported)
+   * @param {string} updates.status - New status
+   * @param {string} updates.priority - New priority level
+   * @param {string} updates.category - New category
+   * @param {string} updates.subcategory - New subcategory
+   * @param {string} updates.technician_id - New technician ID
+   * @param {string} updates.technician_email - New technician email
+   * @param {string} updates.urgency - New urgency level
+   * @param {string} updates.impact - New impact level
+   * @param {string} updates.level - New support level
+   * @param {Object} updates.due_by_time - New due date/time
+   * @param {Object} updates.first_response_due_by_time - New first response due time
+   * @param {string} updates.update_reason - Reason for the update
+   * @param {string} updates.status_change_comments - Comments for status change
+   * @param {string} updates.impact_details - Impact description (max 250 chars)
+   * @param {Array} updates.email_ids_to_notify - Email addresses to notify
+   * @param {Array} updates.assets - Associated assets
+   * @param {Array} updates.configuration_items - Configuration items
+   * @param {Object} updates.udf_fields - User-defined fields
+   * @param {Object} updates.template - Template to use
+   * @param {Object} updates.site - Associated site
+   * @param {Object} updates.group - Assigned group
+   * @param {Object} updates.service_category - Service category
+   * @param {Object} updates.service_approvers - Service approval configuration
+   * @param {Object} updates.resources - Service catalog resources
+   * @param {Object} updates.resolution - Resolution details
+   * @param {Object} updates.closure_info - Closure information
+   * @param {Object} updates.scheduled_start_time - Scheduled start time
+   * @param {Object} updates.scheduled_end_time - Scheduled end time
+   * @returns {Promise<Object>} The updated request object
    */
   async updateRequest(requestId, updates) {
     await this.ensureMetadata();
     
     const request = {};
     
+    // Validate field lengths
+    if (updates.subject && updates.subject.length > 250) {
+      throw new Error('Subject must be 250 characters or less');
+    }
+    
+    if (updates.impact_details && updates.impact_details.length > 250) {
+      throw new Error('Impact details must be 250 characters or less');
+    }
+    
+    // Basic fields
     if (updates.subject) request.subject = updates.subject;
     if (updates.description) request.description = updates.description;
+    if (updates.impact_details) request.impact_details = updates.impact_details;
+    
+    // Update reason and comments
+    if (updates.update_reason) request.update_reason = updates.update_reason;
+    if (updates.status_change_comments) request.status_change_comments = updates.status_change_comments;
+    
+    // Date/time fields
+    if (updates.due_by_time) request.due_by_time = updates.due_by_time;
+    if (updates.first_response_due_by_time) request.first_response_due_by_time = updates.first_response_due_by_time;
+    if (updates.scheduled_start_time) request.scheduled_start_time = updates.scheduled_start_time;
+    if (updates.scheduled_end_time) request.scheduled_end_time = updates.scheduled_end_time;
+    
+    // Array fields
+    if (updates.email_ids_to_notify && Array.isArray(updates.email_ids_to_notify)) {
+      request.email_ids_to_notify = updates.email_ids_to_notify;
+    }
+    
+    if (updates.assets && Array.isArray(updates.assets)) {
+      request.assets = updates.assets;
+    }
+    
+    if (updates.configuration_items && Array.isArray(updates.configuration_items)) {
+      request.configuration_items = updates.configuration_items;
+    }
+    
+    // Object fields
+    if (updates.udf_fields && typeof updates.udf_fields === 'object') {
+      request.udf_fields = updates.udf_fields;
+    }
+    
+    if (updates.template) {
+      request.template = typeof updates.template === 'string' ? { name: updates.template } : updates.template;
+    }
+    
+    if (updates.site) {
+      request.site = typeof updates.site === 'string' ? { name: updates.site } : updates.site;
+    }
+    
+    if (updates.group) {
+      request.group = typeof updates.group === 'string' ? { name: updates.group } : updates.group;
+    }
+    
+    if (updates.service_category) {
+      request.service_category = typeof updates.service_category === 'string' ? { name: updates.service_category } : updates.service_category;
+    }
+    
+    if (updates.service_approvers) {
+      request.service_approvers = updates.service_approvers;
+    }
+    
+    if (updates.resources) {
+      request.resources = updates.resources;
+    }
+    
+    if (updates.resolution) {
+      request.resolution = updates.resolution;
+    }
+    
+    if (updates.closure_info) {
+      request.closure_info = updates.closure_info;
+    }
+    
+    // Handle urgency field
+    if (updates.urgency) {
+      request.urgency = { name: updates.urgency };
+    }
+    
+    // Handle level field
+    if (updates.level) {
+      request.level = { name: updates.level };
+    }
+    
+    // Handle impact field
+    if (updates.impact) {
+      request.impact = { name: updates.impact };
+    }
     
     if (updates.status) {
       // For statuses, always use name format since we don't have IDs
@@ -508,14 +799,9 @@ class SDPAPIClientV2 {
     if (updates.technician_id) {
       request.technician = { id: updates.technician_id };
     } else if (updates.technician_email) {
-      try {
-        const tech = await this.users.findTechnician(updates.technician_email);
-        if (tech) {
-          request.technician = { id: tech.id };
-        }
-      } catch (error) {
-        console.error(`Could not find technician: ${updates.technician_email}`);
-      }
+      // Use technician email directly - the /users endpoint doesn't exist in SDP Cloud API
+      console.error(`Using technician email directly: ${updates.technician_email}`);
+      request.technician = { email_id: updates.technician_email };
     }
     
     const params = {
@@ -528,15 +814,23 @@ class SDPAPIClientV2 {
   
   /**
    * Add note - use correct v3 API format
+   * 
+   * @param {string} requestId - ID of the request to add note to
+   * @param {string} noteContent - Content of the note
+   * @param {boolean} isPublic - Whether the note is visible to requester (default: true)
+   * @param {boolean} notifyTechnician - Whether to notify technician (default: false)
+   * @param {boolean} addToLinkedRequests - Whether to add to linked requests (default: false)
+   * @param {boolean} markFirstResponse - Whether to mark as first response (default: false)
+   * @returns {Promise<Object>} The created note object
    */
-  async addNote(requestId, noteContent, isPublic = true) {
+  async addNote(requestId, noteContent, isPublic = true, notifyTechnician = false, addToLinkedRequests = false, markFirstResponse = false) {
     try {
       const request_note = {
         description: noteContent,
-        notify_technician: false,
+        notify_technician: notifyTechnician,
         show_to_requester: isPublic,
-        add_to_linked_requests: false,
-        mark_first_response: false
+        add_to_linked_requests: addToLinkedRequests,
+        mark_first_response: markFirstResponse
       };
       
       const params = {
@@ -553,20 +847,39 @@ class SDPAPIClientV2 {
   
   /**
    * Close request
+   * 
+   * @param {string} requestId - ID of the request to close
+   * @param {Object} closeData - Closure data
+   * @param {string} closeData.closure_comments - Comments for closure
+   * @param {string} closeData.closure_code - Optional closure code
+   * @param {string} closeData.status - Status to set (default: 'Closed')
+   * @param {Object} closeData.resolution - Resolution details
+   * @returns {Promise<Object>} The closed request object
    */
   async closeRequest(requestId, closeData) {
     await this.ensureMetadata();
     
-    const { closure_comments, closure_code = 'Resolved' } = closeData;
+    const { closure_comments, closure_code, status = 'Closed', resolution } = closeData;
     
+    // Try closing with just closure_comments and status change
+    // Skip closure_code as it's causing validation errors
     const request = {
       closure_info: {
-        closure_code: { name: closure_code },
         closure_comments: closure_comments || 'Request closed'
       },
       // Use the name format for status
-      status: { name: 'Closed' }
+      status: { name: status }
     };
+    
+    // Add resolution if provided
+    if (resolution) {
+      request.resolution = resolution;
+    }
+    
+    // Add closure_code if provided (may cause validation errors in some instances)
+    if (closure_code) {
+      request.closure_info.closure_code = closure_code;
+    }
     
     const params = {
       input_data: JSON.stringify({ request })
@@ -578,9 +891,26 @@ class SDPAPIClientV2 {
   
   /**
    * Search requests with proper format
+   * 
+   * @param {string} query - Search query string
+   * @param {Object} options - Search options
+   * @param {number} options.limit - Maximum number of results (default: 10, max: 100)
+   * @param {number} options.offset - Starting offset for pagination (default: 0)
+   * @param {string} options.searchIn - Field to search in (default: 'subject')
+   * @param {string} options.sortBy - Field to sort by (default: 'created_time')
+   * @param {string} options.sortOrder - Sort order 'asc' or 'desc' (default: 'desc')
+   * @param {boolean} options.getTotalCount - Whether to get total count (default: true)
+   * @returns {Promise<Object>} Search results with requests array and pagination info
    */
   async searchRequests(query, options = {}) {
-    const { limit = 10, offset = 0, searchIn = 'subject' } = options;
+    const { 
+      limit = 10, 
+      offset = 0, 
+      searchIn = 'subject', 
+      sortBy = 'created_time', 
+      sortOrder = 'desc',
+      getTotalCount = true 
+    } = options;
     
     // Enforce API maximum of 100 rows per request
     const rowCount = Math.min(limit, 100);
@@ -590,7 +920,9 @@ class SDPAPIClientV2 {
     const listInfo = {
       row_count: rowCount,
       start_index: offset || 1,  // SDP uses 1-based indexing
-      get_total_count: true,
+      sort_field: sortBy,
+      sort_order: sortOrder,
+      get_total_count: getTotalCount,
       search_criteria: {
         field: searchIn,
         condition: 'contains',
@@ -612,9 +944,24 @@ class SDPAPIClientV2 {
   
   /**
    * Advanced search with multiple criteria
+   * 
+   * @param {Object|Array} criteria - Search criteria object or array
+   * @param {Object} options - Search options
+   * @param {number} options.limit - Maximum number of results (default: 10, max: 100)
+   * @param {number} options.page - Page number for pagination (default: 1)
+   * @param {string} options.sortBy - Field to sort by (default: 'created_time')
+   * @param {string} options.sortOrder - Sort order 'asc' or 'desc' (default: 'desc')
+   * @param {boolean} options.getTotalCount - Whether to get total count (default: true)
+   * @returns {Promise<Object>} Search results with requests array and pagination info
    */
   async advancedSearchRequests(criteria, options = {}) {
-    const { limit = 10, page = 1 } = options;
+    const { 
+      limit = 10, 
+      page = 1, 
+      sortBy = 'created_time', 
+      sortOrder = 'desc',
+      getTotalCount = true 
+    } = options;
     
     // Enforce API maximum of 100 rows per request
     const rowCount = Math.min(limit, 100);
@@ -622,7 +969,9 @@ class SDPAPIClientV2 {
     const listInfo = {
       row_count: rowCount,
       page: page,  // Use page instead of start_index for easier pagination
-      get_total_count: true,
+      sort_field: sortBy,
+      sort_order: sortOrder,
+      get_total_count: getTotalCount,
       search_criteria: criteria
     };
     

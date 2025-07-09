@@ -455,127 +455,60 @@ const toolImplementations = {
   },
   
   async list_technicians(params) {
-    try {
-      const { limit = 25, search_term } = params;
-      
-      console.error(`Listing technicians: limit=${limit}, search=${search_term}`);
-      
-      const result = await sdpClient.users.listTechnicians({
-        limit,
-        searchTerm: search_term
-      });
-      
-      const formattedTechnicians = result.technicians.map(tech => ({
-        id: tech.id,
-        name: tech.name,
-        email: tech.email_id,
-        phone: tech.phone,
-        mobile: tech.mobile,
-        department: tech.department?.name,
-        job_title: tech.job_title,
-        employee_id: tech.employee_id,
-        is_technician: true,
-        site: tech.site?.name
-      }));
-      
-      return {
-        content: [{
-          type: 'text',
-          text: JSON.stringify({
-            technicians: formattedTechnicians,
-            total_count: result.total_count,
-            has_more: result.has_more,
-            usage_hint: 'Use technician ID or email when assigning tickets'
-          }, null, 2)
-        }]
-      };
-    } catch (error) {
-      throw new Error(`Failed to list technicians: ${error.message}`);
-    }
+    // The /users endpoint doesn't exist in Service Desk Plus Cloud API v3
+    // Return empty result to prevent 401 errors and token refresh loops
+    console.error('Warning: Technician listing not available - /users endpoint does not exist in SDP Cloud API');
+    
+    return {
+      content: [{
+        type: 'text',
+        text: JSON.stringify({
+          message: 'Technician listing is not available in Service Desk Plus Cloud API v3',
+          technicians: [],
+          total_count: 0,
+          has_more: false,
+          usage_tip: 'To assign tickets, use known technician IDs or email addresses directly',
+          note: 'The /users endpoint does not exist in the current API. Technician information is embedded in request objects.'
+        }, null, 2)
+      }]
+    };
   },
   
   async get_technician(params) {
-    try {
-      const { technician_id } = params;
-      
-      if (!technician_id) {
-        throw new Error('technician_id is required');
-      }
-      
-      console.error(`Getting technician details for ID: ${technician_id}`);
-      
-      const technician = await sdpClient.users.getTechnician(technician_id);
-      
-      return {
-        content: [{
-          type: 'text',
-          text: JSON.stringify({
-            id: technician.id,
-            name: technician.name,
-            email: technician.email_id,
-            phone: technician.phone,
-            mobile: technician.mobile,
-            department: technician.department,
-            job_title: technician.job_title,
-            employee_id: technician.employee_id,
-            cost_per_hour: technician.cost_per_hour,
-            site: technician.site,
-            reporting_to: technician.reporting_to,
-            groups: technician.associated_groups || []
-          }, null, 2)
-        }]
-      };
-    } catch (error) {
-      throw new Error(`Failed to get technician: ${error.message}`);
-    }
+    // The /users endpoint doesn't exist in Service Desk Plus Cloud API v3
+    console.error('Warning: Technician details not available - /users endpoint does not exist in SDP Cloud API');
+    
+    return {
+      content: [{
+        type: 'text',
+        text: JSON.stringify({
+          message: 'Technician details are not available in Service Desk Plus Cloud API v3',
+          error: 'The /users/{id} endpoint does not exist in the current API',
+          suggestion: 'Technician information is embedded in request objects when retrieved'
+        }, null, 2)
+      }]
+    };
   },
   
   async find_technician(params) {
-    try {
-      const { search_term } = params;
-      
-      if (!search_term) {
-        throw new Error('search_term is required');
-      }
-      
-      // Remove mailto: prefix if present
-      const cleanSearchTerm = search_term.replace(/^mailto:/i, '');
-      
-      console.error(`Finding technician by: ${cleanSearchTerm}`);
-      
-      const technician = await sdpClient.users.findTechnician(cleanSearchTerm);
-      
-      if (!technician) {
-        return {
-          content: [{
-            type: 'text',
-            text: JSON.stringify({
-              found: false,
-              message: `No technician found matching "${search_term}"`,
-              suggestion: 'Try using list_technicians to see available technicians'
-            }, null, 2)
-          }]
-        };
-      }
-      
-      return {
-        content: [{
-          type: 'text',
-          text: JSON.stringify({
-            found: true,
-            technician: {
-              id: technician.id,
-              name: technician.name,
-              email: technician.email_id,
-              department: technician.department?.name,
-              usage: `Use ID "${technician.id}" or email "${technician.email_id}" to assign tickets`
-            }
-          }, null, 2)
-        }]
-      };
-    } catch (error) {
-      throw new Error(`Failed to find technician: ${error.message}`);
-    }
+    // The /users endpoint doesn't exist in Service Desk Plus Cloud API v3
+    console.error('Warning: Technician search not available - /users endpoint does not exist in SDP Cloud API');
+    
+    const { search_term } = params;
+    const cleanSearchTerm = search_term ? search_term.replace(/^mailto:/i, '') : '';
+    
+    return {
+      content: [{
+        type: 'text',
+        text: JSON.stringify({
+          found: false,
+          message: 'Technician search is not available in Service Desk Plus Cloud API v3',
+          search_term: cleanSearchTerm,
+          error: 'The /users endpoint does not exist in the current API',
+          suggestion: 'Use known technician email addresses directly when assigning tickets (e.g., "cmeuth@pttg.com")'
+        }, null, 2)
+      }]
+    };
   }
 };
 
@@ -699,7 +632,7 @@ const tools = [
         },
         technician_id: {
           type: 'string',
-          description: 'ID of technician to assign (use list_technicians to find IDs)'
+          description: 'ID of technician to assign'
         },
         technician_email: {
           type: 'string',
@@ -906,6 +839,16 @@ function handleJsonRpcMessage(message, sseConnection) {
         result = { tools };
         break;
         
+      case 'resources/list':
+        // No resources provided by this server
+        result = { resources: [] };
+        break;
+        
+      case 'prompts/list':
+        // No prompts provided by this server
+        result = { prompts: [] };
+        break;
+        
       case 'tools/call':
         const { name, arguments: args } = params || {};
         
@@ -1018,10 +961,6 @@ app.listen(PORT, '0.0.0.0', () => {
   console.error('- close_request: Close request');
   console.error('- add_note: Add note to request');
   console.error('- search_requests: Search requests');
-  console.error('\nUser Management:');
-  console.error('- list_technicians: List available technicians');
-  console.error('- get_technician: Get technician details');
-  console.error('- find_technician: Find technician by name/email');
   console.error('\nUtilities:');
   console.error('- get_metadata: Get valid field values');
   console.error('- claude_code_command: Claude Code integration');

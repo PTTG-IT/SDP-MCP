@@ -18,7 +18,7 @@ class SDPOAuthClient {
     // Use the refresh token from sdp-mcp-server's .env if available
     this.clientId = config.clientId || process.env.SDP_CLIENT_ID || '1000.U38EZ7R0KMO9DQZHYGKE83FG4OVUEU';
     this.clientSecret = config.clientSecret || process.env.SDP_CLIENT_SECRET || '5752f7060c587171f81b21d58c5b8d0019587ca999';
-    this.refreshToken = config.refreshToken || process.env.SDP_REFRESH_TOKEN || '1000.58376be1b900c8dba9c8cb277e07ab31.0766efe7060d6208a7c71b0b9d057936';
+    this.refreshToken = config.refreshToken || process.env.SDP_OAUTH_REFRESH_TOKEN || process.env.SDP_REFRESH_TOKEN || '1000.58376be1b900c8dba9c8cb277e07ab31.0766efe7060d6208a7c71b0b9d057936';
     this.dataCenter = config.dataCenter || process.env.SDP_DATA_CENTER || 'US';
     
     // Token storage
@@ -58,7 +58,8 @@ class SDPOAuthClient {
       const tokens = JSON.parse(data);
       this.accessToken = tokens.accessToken;
       this.tokenExpiry = new Date(tokens.tokenExpiry);
-      this.refreshToken = tokens.refreshToken || this.refreshToken;
+      // IMPORTANT: Don't override refresh token from file - always use environment variable
+      // this.refreshToken = tokens.refreshToken || this.refreshToken;
       console.error('Loaded tokens from file, expires at:', this.tokenExpiry.toISOString());
       console.error('Token valid?', this.isTokenValid());
     } catch (error) {
