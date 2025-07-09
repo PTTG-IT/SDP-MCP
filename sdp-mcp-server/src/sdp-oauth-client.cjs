@@ -127,31 +127,53 @@ class SDPOAuthClient {
   async _doRefresh() {
     console.error('Refreshing access token...');
     
-    try {
-      const params = new URLSearchParams();
-      params.append('grant_type', 'refresh_token');
-      params.append('client_id', this.clientId);
-      params.append('client_secret', this.clientSecret);
-      params.append('refresh_token', this.refreshToken);
-      
-      const response = await axios.post(this.getOAuthEndpoint(), params, {
-        headers: {
-          'Content-Type': 'application/x-www-form-urlencoded'
+    const MAX_RETRIES = 3;
+    let lastError = null;
+    
+    for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+      try {
+        const params = new URLSearchParams();
+        params.append('grant_type', 'refresh_token');
+        params.append('client_id', this.clientId);
+        params.append('client_secret', this.clientSecret);
+        params.append('refresh_token', this.refreshToken);
+        
+        const response = await axios.post(this.getOAuthEndpoint(), params, {
+          headers: {
+            'Content-Type': 'application/x-www-form-urlencoded'
+          },
+          timeout: 30000 // 30 second timeout
+        });
+        
+        this.accessToken = response.data.access_token;
+        // Zoho tokens expire in 1 hour (3600 seconds)
+        this.tokenExpiry = new Date(Date.now() + (response.data.expires_in * 1000));
+        
+        await this.saveTokens();
+        console.error('Access token refreshed successfully');
+        
+        return this.accessToken;
+      } catch (error) {
+        lastError = error;
+        console.error(`Token refresh attempt ${attempt}/${MAX_RETRIES} failed:`, error.response?.data || error.message);
+        
+        // Check if it's a rate limit error
+        if (error.response?.status === 429 || 
+            (error.response?.data && typeof error.response.data === 'string' && 
+             error.response.data.includes('rate limit'))) {
+          console.error('Rate limit hit. Waiting before retry...');
+          // Exponential backoff: 5s, 10s, 20s
+          const waitTime = Math.min(5000 * Math.pow(2, attempt - 1), 20000);
+          await new Promise(resolve => setTimeout(resolve, waitTime));
+        } else if (attempt < MAX_RETRIES) {
+          // For other errors, wait a bit before retry
+          await new Promise(resolve => setTimeout(resolve, 1000));
         }
-      });
-      
-      this.accessToken = response.data.access_token;
-      // Zoho tokens expire in 1 hour (3600 seconds)
-      this.tokenExpiry = new Date(Date.now() + (response.data.expires_in * 1000));
-      
-      await this.saveTokens();
-      console.error('Access token refreshed successfully');
-      
-      return this.accessToken;
-    } catch (error) {
-      console.error('Failed to refresh token:', error.response?.data || error.message);
-      throw new Error('OAuth token refresh failed');
+      }
     }
+    
+    console.error('All token refresh attempts failed');
+    throw new Error(`OAuth token refresh failed after ${MAX_RETRIES} attempts: ${lastError?.message || 'Unknown error'}`);
   }
   
   /**

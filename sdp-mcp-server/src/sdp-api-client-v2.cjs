@@ -79,19 +79,42 @@ class SDPAPIClientV2 {
           console.error(`API returned status ${error.response.status} for ${error.config.method.toUpperCase()} ${error.config.url}`);
         }
         
-        // Only refresh on actual 401 Unauthorized errors
+        // Only refresh on actual 401 Unauthorized errors with token issues
         if (error.response?.status === 401) {
-          console.error('Got 401 Unauthorized, attempting token refresh...');
-          try {
-            await this.oauth.refreshAccessToken();
-            const originalRequest = error.config;
-            const token = await this.oauth.getAccessToken();
-            originalRequest.headers['Authorization'] = `Zoho-oauthtoken ${token}`;
-            return this.client(originalRequest);
-          } catch (refreshError) {
-            console.error('Token refresh failed:', refreshError.message);
-            // Don't retry if refresh fails
-            return Promise.reject(error);
+          // Check if it's a token issue or just missing endpoint/scope
+          const errorData = error.response?.data;
+          const errorMessage = errorData?.response_status?.messages?.[0]?.message || 
+                              errorData?.message || 
+                              JSON.stringify(errorData);
+          
+          // Don't refresh for missing endpoints or scope issues
+          const skipRefreshPatterns = [
+            'endpoint not found',
+            'resource not found',
+            'scope',
+            'permission',
+            'access denied'
+          ];
+          
+          const shouldSkipRefresh = skipRefreshPatterns.some(pattern => 
+            errorMessage.toLowerCase().includes(pattern)
+          );
+          
+          if (!shouldSkipRefresh) {
+            console.error('Got 401 Unauthorized, attempting token refresh...');
+            try {
+              await this.oauth.refreshAccessToken();
+              const originalRequest = error.config;
+              const token = await this.oauth.getAccessToken();
+              originalRequest.headers['Authorization'] = `Zoho-oauthtoken ${token}`;
+              return this.client(originalRequest);
+            } catch (refreshError) {
+              console.error('Token refresh failed:', refreshError.message);
+              // Don't retry if refresh fails
+              return Promise.reject(error);
+            }
+          } else {
+            console.error(`Got 401 but skipping refresh (likely missing scope/endpoint): ${errorMessage}`);
           }
         }
         
@@ -186,46 +209,67 @@ class SDPAPIClientV2 {
       get_total_count: true  // Request total count for pagination
     };
     
-    // Add filters using search_criteria (proper format per API docs)
-    if (status || priority) {
+    // Add filters - try filter_by for simple filters first
+    if (status && !priority) {
+      // Single status filter - use filter_by
+      const statusMap = {
+        'open': 'Open',
+        'closed': 'Closed',
+        'pending': 'On Hold',
+        'resolved': 'Resolved',
+        'in progress': 'In Progress'
+      };
+      const statusName = statusMap[status.toLowerCase()] || status;
+      listInfo.filter_by = {
+        name: 'status.name',
+        value: statusName
+      };
+    } else if (priority && !status) {
+      // Single priority filter - use filter_by
+      const priorityMap = {
+        'low': '1 - Low',
+        'medium': 'z - Medium',
+        'high': '3 - High',
+        'urgent': '4 - Critical'
+      };
+      const priorityName = priorityMap[priority.toLowerCase()] || priority;
+      listInfo.filter_by = {
+        name: 'priority.name',
+        value: priorityName
+      };
+    } else if (status && priority) {
+      // Multiple filters - use search_criteria
       const searchCriteria = [];
       
-      if (status) {
-        // Map common status values to proper names
-        const statusMap = {
-          'open': 'Open',
-          'closed': 'Closed',
-          'pending': 'On Hold',
-          'resolved': 'Resolved',
-          'in progress': 'In Progress'
-        };
-        const statusName = statusMap[status.toLowerCase()] || status;
-        searchCriteria.push({
-          field: 'status.name',
-          condition: 'is',
-          value: statusName
-        });
-      }
+      const statusMap = {
+        'open': 'Open',
+        'closed': 'Closed',
+        'pending': 'On Hold',
+        'resolved': 'Resolved',
+        'in progress': 'In Progress'
+      };
+      const statusName = statusMap[status.toLowerCase()] || status;
+      searchCriteria.push({
+        field: 'status.name',
+        condition: 'is',
+        value: statusName
+      });
       
-      if (priority) {
-        // Use priority name directly
-        const priorityMap = {
-          'low': '1 - Low',
-          'medium': 'z - Medium',
-          'high': '3 - High',
-          'urgent': '4 - Critical'
-        };
-        const priorityName = priorityMap[priority.toLowerCase()] || priority;
-        searchCriteria.push({
-          field: 'priority.name',
-          condition: 'is',
-          value: priorityName
-        });
-      }
+      const priorityMap = {
+        'low': '1 - Low',
+        'medium': 'z - Medium',
+        'high': '3 - High',
+        'urgent': '4 - Critical'
+      };
+      const priorityName = priorityMap[priority.toLowerCase()] || priority;
+      searchCriteria.push({
+        field: 'priority.name',
+        condition: 'is',
+        value: priorityName,
+        logical_operator: 'AND'
+      });
       
-      if (searchCriteria.length > 0) {
-        listInfo.search_criteria = searchCriteria;
-      }
+      listInfo.search_criteria = searchCriteria;
     }
     
     const params = {
@@ -252,7 +296,7 @@ class SDPAPIClientV2 {
    * Create request with proper IDs
    */
   async createRequest(requestData) {
-    const { subject, description, priority = 'medium', category, subcategory, requester_email, requester_name, technician_id, technician_email } = requestData;
+    const { subject, description, priority = 'medium', category, subcategory, requester, requester_email, requester_name, technician_id, technician_email } = requestData;
     
     if (!subject) {
       throw new Error('Subject is required');
@@ -288,24 +332,35 @@ class SDPAPIClientV2 {
     
     // Use category ID
     if (category) {
-      const categoryId = this.metadata.getCategoryId(category);
-      // Only set if we got a valid ID, not the same string back
-      if (categoryId && categoryId !== category) {
-        request.category = { id: categoryId };
-      } else {
-        console.error(`Warning: Could not find category ID for "${category}"`);
-        // Use name format as fallback
-        request.category = { name: category };
+      // Handle both object and string formats
+      if (typeof category === 'object' && category.id) {
+        request.category = category;
+      } else if (typeof category === 'string') {
+        const categoryId = this.metadata.getCategoryId(category);
+        // Only set if we got a valid ID, not the same string back
+        if (categoryId && categoryId !== category) {
+          request.category = { id: categoryId };
+        } else {
+          console.error(`Warning: Could not find category ID for "${category}"`);
+          // Use name format as fallback
+          request.category = { name: category };
+        }
       }
     }
     
     // Add subcategory - this is often required
     if (subcategory) {
-      request.subcategory = { name: subcategory };
-    } else {
+      // Handle both object and string formats
+      if (typeof subcategory === 'object' && subcategory.id) {
+        request.subcategory = subcategory;
+      } else if (typeof subcategory === 'string') {
+        request.subcategory = { name: subcategory };
+      }
+    } else if (request.category) {
       // Default subcategory - always add one since it's often required
       // The specific subcategory depends on the category
-      if (category && (category.toLowerCase() === 'software' || categoryId === '216826000000006689')) {
+      const categoryId = request.category.id || '0';
+      if (categoryId === '216826000000006689' || request.category.name === 'Software') {
         request.subcategory = { name: 'Application' };
       } else {
         // Generic default subcategory
@@ -314,13 +369,17 @@ class SDPAPIClientV2 {
     }
     
     // Add requester
-    if (requester_email || requester_name) {
+    if (requester) {
+      // Direct requester object provided
+      request.requester = requester;
+    } else if (requester_email || requester_name) {
       request.requester = {};
       if (requester_email) request.requester.email_id = requester_email;
       if (requester_name) request.requester.name = requester_name;
     } else {
-      // Default requester if none provided
-      request.requester = { email_id: 'office365alerts@microsoft.com' };
+      // No default requester - SDP will use the API user as requester
+      // This avoids error 4001 for invalid email addresses
+      console.error('No requester specified, SDP will use API user as requester');
     }
     
     // Add technician assignment if provided
@@ -501,16 +560,17 @@ class SDPAPIClientV2 {
     // Enforce API maximum of 100 rows per request
     const rowCount = Math.min(limit, 100);
     
-    // Use search_criteria for searching (proper format per API docs)
+    // Use search_criteria for searching (object format, not array)
+    // Service Desk Plus requires object format for single criteria
     const listInfo = {
       row_count: rowCount,
-      start_index: offset,
+      start_index: offset || 1,  // SDP uses 1-based indexing
       get_total_count: true,
-      search_criteria: [{
+      search_criteria: {
         field: searchIn,
         condition: 'contains',
         value: query
-      }]
+      }
     };
     
     const params = {

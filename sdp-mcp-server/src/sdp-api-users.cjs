@@ -29,6 +29,7 @@ class SDPUsersAPI {
     };
     
     // Add search using search_criteria if provided
+    // IMPORTANT: Cannot use both search_criteria and filter_by - causes 400 error
     if (searchTerm) {
       listInfo.search_criteria = [{
         field: 'name',
@@ -37,33 +38,33 @@ class SDPUsersAPI {
       }];
     }
     
-    // Filter to only get technicians (users with technician role)
-    listInfo.filter_by = {
-      name: 'is_technician',
-      value: true
-    };
-    
     const params = {
       input_data: JSON.stringify({ list_info: listInfo })
     };
     
     try {
-      // Try /technicians endpoint first
-      const response = await this.client.get('/technicians', { params });
+      // Only try /users endpoint - /technicians doesn't exist in SDP Cloud
+      const response = await this.client.get('/users', { params });
+      
+      // Filter technicians from users list based on properties
+      // Look for users who have technician-specific properties
+      const allUsers = response.data.users || [];
+      const technicians = allUsers.filter(user => {
+        // Check various indicators that user is a technician
+        return user.is_technician === true || 
+               user.is_vip_user === true ||
+               user.employee_id || 
+               user.department?.name;
+      });
+      
       return {
-        technicians: response.data.technicians || [],
-        total_count: response.data.list_info?.total_count || 0,
+        technicians: technicians,
+        total_count: technicians.length,
         has_more: response.data.list_info?.has_more_rows || false
       };
     } catch (error) {
-      // If /technicians doesn't exist, try /users with technician filter
-      console.error('Technicians endpoint not found, trying users endpoint');
-      const response = await this.client.get('/users', { params });
-      return {
-        technicians: response.data.users || [],
-        total_count: response.data.list_info?.total_count || 0,
-        has_more: response.data.list_info?.has_more_rows || false
-      };
+      console.error('Failed to list users/technicians:', error.message);
+      throw error;
     }
   }
 
@@ -72,14 +73,12 @@ class SDPUsersAPI {
    */
   async getTechnician(technicianId) {
     try {
-      // Try /technicians endpoint first
-      const response = await this.client.get(`/technicians/${technicianId}`);
-      return response.data.technician;
-    } catch (error) {
-      // If /technicians doesn't exist, try /users
-      console.error('Technicians endpoint not found, trying users endpoint');
+      // Only use /users endpoint
       const response = await this.client.get(`/users/${technicianId}`);
       return response.data.user;
+    } catch (error) {
+      console.error('Failed to get user/technician:', error.message);
+      throw error;
     }
   }
 
@@ -101,6 +100,7 @@ class SDPUsersAPI {
     };
     
     // Add search using search_criteria if provided
+    // IMPORTANT: Cannot use both search_criteria and filter_by - causes 400 error
     if (searchTerm) {
       listInfo.search_criteria = [{
         field: 'name',
@@ -109,22 +109,22 @@ class SDPUsersAPI {
       }];
     }
     
-    // Filter by active status
-    if (!includeInactive) {
-      listInfo.filter_by = {
-        name: 'is_vip_user',
-        value: false  // This might need adjustment based on API
-      };
-    }
-    
     const params = {
       input_data: JSON.stringify({ list_info: listInfo })
     };
     
     const response = await this.client.get('/users', { params });
+    
+    // Filter results after getting them if needed
+    let users = response.data.users || [];
+    if (!includeInactive) {
+      // Filter out inactive users client-side
+      users = users.filter(user => user.is_active !== false);
+    }
+    
     return {
-      users: response.data.users || [],
-      total_count: response.data.list_info?.total_count || 0,
+      users: users,
+      total_count: users.length,
       has_more: response.data.list_info?.has_more_rows || false
     };
   }

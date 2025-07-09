@@ -232,6 +232,55 @@ class SDPMetadataClient {
     if (!this.cache.categoryMap) return name;
     return this.cache.categoryMap[name.toLowerCase()] || name;
   }
+  
+  /**
+   * Get subcategories for a specific category
+   */
+  async getSubcategories(categoryId) {
+    // Check cache first
+    const cacheKey = `subcategories_${categoryId}`;
+    if (this.cache[cacheKey]) return this.cache[cacheKey];
+    
+    try {
+      const params = {
+        input_data: JSON.stringify({
+          list_info: {
+            row_count: 100,
+            start_index: 1
+          }
+        })
+      };
+      
+      const response = await this.client.get(`/categories/${categoryId}/subcategories`, { params });
+      const subcategories = response.data.subcategories || [];
+      
+      // Cache the results
+      this.cache[cacheKey] = subcategories;
+      
+      // Create mapping
+      const subcategoryMap = {};
+      subcategories.forEach(sc => {
+        subcategoryMap[sc.name.toLowerCase()] = sc.id;
+        subcategoryMap[sc.id] = sc.name;
+      });
+      this.cache[`subcategoryMap_${categoryId}`] = subcategoryMap;
+      
+      return subcategories;
+    } catch (error) {
+      console.error('Failed to fetch subcategories:', error.message);
+      return [];
+    }
+  }
+  
+  /**
+   * Get subcategory ID by name for a specific category
+   */
+  async getSubcategoryId(categoryId, subcategoryName) {
+    await this.getSubcategories(categoryId);
+    const mapKey = `subcategoryMap_${categoryId}`;
+    if (!this.cache[mapKey]) return subcategoryName;
+    return this.cache[mapKey][subcategoryName.toLowerCase()] || subcategoryName;
+  }
 }
 
 module.exports = { SDPMetadataClient };
